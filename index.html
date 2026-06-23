@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06c755">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.line-scdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://profile.line-scdn.net; connect-src 'self' https://*.supabase.co https://api.line.me https://access.line.me; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="no-referrer">
+  <title>さかいそろばん教室｜欠席・振替連絡</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <button class="brand" id="homeButton" type="button" aria-label="ホームへ">
+      <img src="logo.svg" alt="さかいそろばん教室ロゴ">
+      <span><small>福沼教室・穂波教室</small><b>さかいそろばん教室</b></span>
+    </button>
+    <div class="header-actions">
+      <button class="parent-logout" id="parentLogoutButton" type="button" hidden>保護者ログアウト</button>
+      <button class="teacher-link" id="teacherLink" type="button">先生用</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="parentLoginView" class="view active">
+      <div class="login-card parent-line-card">
+        <img src="logo.svg" alt="さかいそろばん教室">
+        <p class="green-label">保護者さま専用</p>
+        <h1>欠席・振替連絡</h1>
+        <p class="quick-message">約30秒で送信できます</p>
+        <div class="login-divider" aria-hidden="true"></div>
+        <p id="parentLoginError" class="error-text"></p>
+        <button class="line-login-button" id="lineLoginButton" type="button">
+          <span>LINE</span>LINEで本人確認して利用する
+        </button>
+        <div class="login-divider" aria-hidden="true"></div>
+        <ul class="login-benefits">
+          <li>パスワード不要</li>
+          <li>兄弟もまとめて連絡可能</li>
+          <li>24時間受付</li>
+        </ul>
+        <p class="privacy-note">🔒 ログインしたご家庭のお子さまだけが表示されます。</p>
+        <p class="connection-notice"></p>
+      </div>
+    </section>
+
+    <section id="linkView" class="view">
+      <div class="login-card">
+        <img src="logo.svg" alt="さかいそろばん教室">
+        <p class="green-label">初回のみ</p>
+        <h1>教室アカウントと連携</h1>
+        <p>教室から案内されたワンタイム連携コードを入力してください。</p>
+        <form id="linkForm">
+          <label for="linkCode">連携コード</label>
+          <input id="linkCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required>
+          <p id="linkError" class="error-text"></p>
+          <button class="primary-button" type="submit">本人確認して連携する</button>
+        </form>
+        <p class="privacy-note">コードは一度使うと無効になります。</p>
+      </div>
+    </section>
+
+    <section id="parentView" class="view">
+      <div class="line-hero">
+        <div class="hero-icon">連絡</div>
+        <div>
+          <p id="parentFamilyLabel">保護者さま専用</p>
+          <h1>欠席・振替連絡</h1>
+          <span>約1分でかんたんに送れます</span>
+        </div>
+      </div>
+
+      <form id="absenceForm" class="form-shell">
+        <section class="form-section">
+          <div class="section-head"><span>1</span><div><h2>生徒名を入力</h2><p id="studentChoiceHelp">登録名を入力してください</p></div></div>
+          <label for="studentNameInput">生徒名</label>
+          <div class="student-name-entry">
+            <input id="studentNameInput" type="text" autocomplete="off" maxlength="100" placeholder="例：山田 さくら">
+            <button id="verifyStudentButton" type="button">確認する</button>
+          </div>
+          <p id="studentMatchError" class="match-error" aria-live="polite"></p>
+          <div id="studentChoices" class="verified-students" aria-live="polite"></div>
+          <p class="privacy-note compact">🔒 LINE連携済みのご家庭に紐づくお子さまだけを表示しています</p>
+        </section>
+
+        <section class="form-section">
+          <div class="section-head"><span>2</span><div><h2>欠席する日</h2><p>日付を選んでください</p></div></div>
+          <label for="regularWeekday">通常の授業曜日</label>
+          <select id="regularWeekday" required>
+            <option value="">曜日を選択してください</option>
+            <option>月曜日</option>
+            <option>火曜日</option>
+            <option>水曜日</option>
+            <option>木曜日</option>
+            <option>金曜日</option>
+            <option>土曜日</option>
+            <option>日曜日</option>
+          </select>
+
+          <label for="absenceDate">欠席日</label>
+          <input id="absenceDate" type="date" required>
+
+          <label for="reason">欠席理由</label>
+          <select id="reason" required>
+            <option value="">理由を選択してください</option>
+            <option>体調不良</option>
+            <option>学校・園の行事</option>
+            <option>ご家庭の都合</option>
+            <option>旅行・帰省</option>
+            <option>その他</option>
+          </select>
+          <div id="otherReasonWrap" hidden>
+            <label for="otherReason">詳しい理由 <small>（任意）</small></label>
+            <input id="otherReason" type="text" placeholder="理由をご入力ください">
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-head"><span>3</span><div><h2>振替について</h2><p>振替の希望を選択</p></div></div>
+          <div class="toggle-choice">
+            <label><input type="radio" name="makeup" value="yes" checked><span>振替を希望する</span></label>
+            <label><input type="radio" name="makeup" value="no"><span>振替は希望しない</span></label>
+          </div>
+
+          <div id="makeupFields">
+            <label for="makeupClassroom">振替先の教室</label>
+            <select id="makeupClassroom">
+              <option>福沼教室</option>
+              <option>穂波教室</option>
+            </select>
+
+            <label>振替希望日</label>
+            <div class="calendar" id="calendar">
+              <div class="calendar-head">
+                <button id="prevMonth" type="button" aria-label="前の月">‹</button>
+                <strong id="calendarTitle"></strong>
+                <button id="nextMonth" type="button" aria-label="次の月">›</button>
+              </div>
+              <div class="weekdays"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+              <div id="calendarDays" class="calendar-days"></div>
+            </div>
+            <input id="makeupDate" type="hidden">
+
+            <label for="makeupSlot">希望時間</label>
+            <select id="makeupSlot">
+              <option value="">授業枠を読み込んでいます</option>
+            </select>
+            <p id="slotAvailability" class="slot-availability" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <div class="sticky-submit">
+          <button class="primary-button" type="submit">欠席・振替を連絡する</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="completeView" class="view">
+      <div class="complete-card">
+        <img src="logo.svg" alt="">
+        <div class="checkmark">✓</div>
+        <p class="green-label">送信完了</p>
+        <h1>ご連絡ありがとうございます</h1>
+        <p id="completeMessage"></p>
+        <div id="completeSummary" class="complete-summary"></div>
+        <p class="reply-note">教室で内容を確認後、必要な場合のみご連絡します。</p>
+        <button id="sendAnother" class="primary-button" type="button">続けて連絡する</button>
+        <button id="backHome" class="text-button" type="button">最初の画面へ戻る</button>
+      </div>
+    </section>
+
+    <section id="loginView" class="view">
+      <div class="login-card">
+        <img src="logo.svg" alt="さかいそろばん教室">
+        <p class="green-label">先生専用</p>
+        <h1>管理画面ログイン</h1>
+        <p>登録された先生のアカウントでログインしてください。</p>
+        <form id="loginForm">
+          <label for="loginEmail">メールアドレス</label>
+          <input id="loginEmail" type="email" autocomplete="username" required>
+          <label for="loginPassword">パスワード</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" required>
+          <p id="loginError" class="error-text"></p>
+          <button class="primary-button" type="submit">ログイン</button>
+        </form>
+        <p class="connection-notice"></p>
+      </div>
+    </section>
+
+    <section id="teacherView" class="view teacher-view">
+      <div class="teacher-heading">
+        <div><p class="green-label">先生用 管理画面</p><h1>教室の連絡一覧</h1><p id="todayLabel"></p></div>
+        <button id="logoutButton" class="outline-button" type="button">ログアウト</button>
+      </div>
+
+      <div class="search-panel">
+        <label>教室<select id="classroomFilter"><option value="all">すべて</option><option>福沼教室</option><option>穂波教室</option></select></label>
+        <label>日付<input id="dateFilter" type="date"></label>
+        <label>生徒検索<input id="studentSearch" type="search" placeholder="名前を入力"></label>
+        <button id="clearFilters" class="outline-button" type="button">条件をクリア</button>
+      </div>
+
+      <div id="syncStatus" class="sync-status"></div>
+      <div class="csv-toolbar">
+        <button id="exportAbsenceCsv" class="csv-button" type="button">欠席一覧.csv</button>
+        <button id="exportMakeupCsv" class="csv-button" type="button">振替一覧.csv</button>
+        <button id="exportPendingCsv" class="csv-button" type="button">未振替一覧.csv</button>
+      </div>
+      <div class="stats" id="stats"></div>
+
+      <nav class="admin-tabs" aria-label="管理メニュー">
+        <button class="admin-tab active" data-tab="today">今日の欠席</button>
+        <button class="admin-tab" data-tab="todayMakeups">今日の振替</button>
+        <button class="admin-tab" data-tab="pending">未振替</button>
+        <button class="admin-tab" data-tab="all">全連絡</button>
+        <button class="admin-tab" data-tab="slots">授業枠・定員</button>
+        <button class="admin-tab" data-tab="audit">監査ログ</button>
+      </nav>
+      <div id="adminContent" class="admin-content"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.27.2/sdk.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
