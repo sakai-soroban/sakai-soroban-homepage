@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>振替・欠席連絡</title>
+<style>
+body{
+    font-family:sans-serif;
+    max-width:600px;
+    margin:30px auto;
+    padding:20px;
+}
+input,select,textarea,button{
+    width:100%;
+    padding:12px;
+    margin:8px 0 20px;
+    box-sizing:border-box;
+}
+button{
+    background:#06C755;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    font-size:16px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>振替・欠席連絡</h2>
+
+<form>
+
+<label>生徒名</label>
+<input type="text">
+
+<label>教室</label>
+<select>
+<option>穂波教室</option>
+<option>福沼教室</option>
+</select>
+
+<label>内容</label>
+<select>
+<option>欠席</option>
+<option>振替希望</option>
+</select>
+
+<label>備考</label>
+<textarea rows="5"></textarea>
+
+<button type="submit">
+送信
+</button>
+
+</form>
+
+</body>
+</html>
