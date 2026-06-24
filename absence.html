@@ -4,58 +4,87 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>振替・欠席連絡</title>
+
 <style>
 body{
     font-family:sans-serif;
     max-width:600px;
-    margin:30px auto;
+    margin:auto;
     padding:20px;
 }
-input,select,textarea,button{
+label{
+    font-weight:bold;
+}
+input,select,textarea{
     width:100%;
-    padding:12px;
-    margin:8px 0 20px;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
     box-sizing:border-box;
 }
 button{
+    width:100%;
+    padding:12px;
     background:#06C755;
-    color:#fff;
+    color:white;
     border:none;
     border-radius:8px;
     font-size:16px;
+    cursor:pointer;
+}
+button:hover{
+    opacity:0.9;
+}
+#result{
+    margin-top:20px;
+    color:#06C755;
+    font-weight:bold;
 }
 </style>
+
 </head>
 
 <body>
 
-<h2>振替・欠席連絡</h2>
+<h1>振替・欠席連絡</h1>
 
-<form>
+<form id="absenceForm">
 
 <label>生徒名</label>
-<input type="text">
+<input type="text" id="name" required>
 
 <label>教室</label>
-<select>
+<select id="school">
 <option>穂波教室</option>
 <option>福沼教室</option>
 </select>
 
 <label>内容</label>
-<select>
+<select id="type">
 <option>欠席</option>
 <option>振替希望</option>
 </select>
 
 <label>備考</label>
-<textarea rows="5"></textarea>
+<textarea id="memo" rows="5"></textarea>
 
-<button type="submit">
-送信
-</button>
+<button type="submit">送信</button>
 
 </form>
+
+<div id="result"></div>
+
+<script>
+
+document.getElementById("absenceForm").addEventListener("submit",function(e){
+
+e.preventDefault();
+
+document.getElementById("result").innerHTML="送信しました。（テスト画面）";
+
+});
+
+</script>
 
 </body>
 </html>
