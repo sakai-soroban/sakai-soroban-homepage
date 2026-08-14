@@ -20,7 +20,7 @@ function dateIso(offset = 0) { const date = new Date(); date.setDate(date.getDat
 function formatDate(value) { if (!value) return "未定"; const date = new Date(`${value}T00:00:00`); return `${date.getMonth() + 1}月${date.getDate()}日（${"日月火水木金土"[date.getDay()]}）`; }
 function escapeHtml(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
 function isSupabaseConfigured() { return Boolean(config.supabaseUrl && config.supabaseAnonKey && !config.supabaseUrl.includes("YOUR_") && !config.supabaseAnonKey.includes("YOUR_")); }
-function isLiffConfigured() { return Boolean(config.liffId && config.lineAuthEndpoint && config.absenceSubmitEndpoint && !config.liffId.includes("YOUR_") && !config.lineAuthEndpoint.includes("YOUR_") && !config.absenceSubmitEndpoint.includes("YOUR_")); }
+function isLiffConfigured() { return Boolean(config.liffId && config.lineAuthEndpoint && !config.liffId.includes("YOUR_") && !config.lineAuthEndpoint.includes("YOUR_")); }
 
 function ensureSecureTransport() {
   const local = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
