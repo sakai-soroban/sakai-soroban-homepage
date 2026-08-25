@@ -480,7 +480,7 @@ $("#absenceForm").addEventListener("submit", async event => {
     $("#completeMessage").textContent = `${chosen.map(student => student.name).join("・")}さんの連絡を受け付けました。`;
     $("#completeSummary").innerHTML = `<div class="summary-row"><span>通常曜日</span><b>${escapeHtml($("#regularWeekday").value)}</b></div>
       <div class="summary-row"><span>欠席日</span><b>${formatDate($("#absenceDate").value)}</b></div>
-      <div class="summary-row"><span>理由</span><b>${escapeHtml(reason)}</b></div><div class="summary-row"><span>振替</span><b>${wantsMakeup ? `${formatDate(selectedSlot?.lesson_date)} ${escapeHtmlescapeHtml(String(selectedSlot?.start_time ?? "").slice(0, 5))}〜` : "希望なし"}</b></div>
+      <div class="summary-row"><span>理由</span><b>${escapeHtml(reason)}</b></div><div class="summary-row"><span>振替</span><b>${wantsMakeup ? `${formatDate(selectedSlot?.lesson_date)} ${escapeHtml(String(selectedSlot?.start_time ?? "").slice(0, 5))}〜` : "希望なし"}</b></div>
       <div class="summary-row"><span>受付番号</span><b>${escapeHtml(result.receipt_number)}</b></div>`;
     await loadMakeupSlots();
     showView("completeView");
