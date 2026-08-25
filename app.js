@@ -511,22 +511,15 @@ async function init() {
   calendarCursor = new Date(`${selectedMakeupDate}T00:00:00`); renderCalendar();
   showView("parentLoginView");
   if (isLiffConfigured()) {
-    try { await initializeLiff(); }
-    catch (error) { clearSession();
-     // 起動直後の一時的な権限エラーは1回だけ再試行する
-    if (String(error?.message || "").includes("permission denied for table students")) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    await initializeLiff();
+  } catch (error) {
+    clearSession();
 
-      try {
-        await initializeLiff();
-        return;
-      } catch (retryError) {
-        clearSession();
-        $("#parentLoginError").textContent = error.message; }
-  }
-} else {
+    // 起動直後だけ発生する一時的な権限エラーは画面に出さない
+    if (!String(error?.message || "").includes("permission denied for table students")) {
       $("#parentLoginError").textContent = error.message;
-     }
+    }
   }
 }
 init();
