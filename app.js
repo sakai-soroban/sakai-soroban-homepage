@@ -466,6 +466,7 @@ $("#absenceForm").addEventListener("submit", async event => {
   const rows = chosen.map(student => ({
     student_id: student.id, regular_weekday: $("#regularWeekday").value,
     absence_date: $("#absenceDate").value, reason, wants_makeup: wantsMakeup,
+    makeup_date: wantsMakeup ? selectedMakeupDate : null,
     makeup_slot_id: wantsMakeup ? slotId : null
   }));
   const button = event.submitter; button.disabled = true; button.textContent = "安全に送信しています…";
