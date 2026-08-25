@@ -225,26 +225,30 @@ async function loadMakeupSlots() {
   chooseFirstAvailableSlot();
   renderCalendar();
 }
-function chooseFirstAvailableSlot() {
-  const room = $("#makeupClassroom").value;
-  const available = makeupSlots.find(slot => slot.classroom === room && !slot.is_full && slot.lesson_date >= dateIso());
-  if (available && !makeupSlots.some(slot => slot.lesson_date === selectedMakeupDate && slot.classroom === room && !slot.is_full)) {
-    selectedMakeupDate = available.lesson_date;
-    $("#makeupDate").value = selectedMakeupDate;
-    calendarCursor = new Date(`${selectedMakeupDate}T00:00:00`);
-  }
-}
 function renderMakeupSlotOptions() {
   const room = $("#makeupClassroom").value;
-  const slots = makeupSlots.filter(slot => slot.lesson_date === selectedMakeupDate && slot.classroom === room);
+  const slots = makeupSlots.filter(
+    slot => slot.lesson_date === selectedMakeupDate && slot.classroom === room
+  );
+
   $("#makeupSlot").innerHTML = slots.length
-    ? slots.map(slot => `<option value="${slot.id}" ${slot.is_full ? "disabled" : ""}>${escapeHtml(slot.start_time)}〜　予約${slot.reserved_count}/${slot.capacity}名　${slot.is_full ? "満員" : `残り${slot.remaining_count}名`}</option>`).join("")
+    ? slots.map(slot => `
+        <option value="${slot.id}" ${slot.is_full ? "disabled" : ""}>
+          ${escapeHtml(String(slot.start_time ?? "").slice(0, 5))}〜
+          予約${slot.reserved_count}/${slot.capacity}名
+          ${slot.is_full ? "満員" : `残り${slot.remaining_count}名`}
+        </option>
+      `).join("")
     : '<option value="">この日の授業枠はありません</option>';
+
   const selectable = slots.find(slot => !slot.is_full);
+
   $("#makeupSlot").value = selectable ? String(selectable.id) : "";
+
   $("#slotAvailability").textContent = selectable
-    ? `${formatDate(selectedMakeupDate)} ${selectable.start_time}〜　残り${selectable.remaining_count}名`
+    ? `${formatDate(selectedMakeupDate)} ${String(selectable.start_time ?? "").slice(0, 5)}〜　残り${selectable.remaining_count}名`
     : "選択できる空き枠がありません";
+
   $("#slotAvailability").classList.toggle("full", !selectable);
 }
 
