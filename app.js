@@ -506,20 +506,34 @@ $("#exportMakeupCsv").addEventListener("click", () => exportNamedCsv("todayMakeu
 $("#exportPendingCsv").addEventListener("click", () => exportNamedCsv("pending", "未振替一覧.csv"));
 
 async function init() {
-  ensureSecureTransport(); setConnectionNotice();
-  $("#absenceDate").value = dateIso(); $("#absenceDate").min = dateIso(-30); $("#makeupDate").value = selectedMakeupDate;
-  calendarCursor = new Date(`${selectedMakeupDate}T00:00:00`); renderCalendar();
-  showView("parentLoginView");
-  if (isLiffConfigured()) {
-  try {
-    await initializeLiff();
-  } catch (error) {
-    clearSession();
+  ensureSecureTransport();
+  setConnectionNotice();
 
-    // 起動直後だけ発生する一時的な権限エラーは画面に出さない
-    if (!String(error?.message || "").includes("permission denied for table students")) {
-      $("#parentLoginError").textContent = error.message;
+  $("#absenceDate").value = dateIso();
+  $("#absenceDate").min = dateIso(-30);
+  $("#makeupDate").value = selectedMakeupDate;
+
+  calendarCursor = new Date(`${selectedMakeupDate}T00:00:00`);
+  renderCalendar();
+
+  showView("parentLoginView");
+
+  if (isLiffConfigured()) {
+    try {
+      await initializeLiff();
+    } catch (error) {
+      clearSession();
+
+      // 起動直後だけ発生する一時的な権限エラーは画面に出さない
+      if (
+        !String(error?.message || "").includes(
+          "permission denied for table students"
+        )
+      ) {
+        $("#parentLoginError").textContent = error.message;
+      }
     }
   }
 }
+
 init();
