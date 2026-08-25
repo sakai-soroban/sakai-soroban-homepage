@@ -512,7 +512,21 @@ async function init() {
   showView("parentLoginView");
   if (isLiffConfigured()) {
     try { await initializeLiff(); }
-    catch (error) { clearSession(); $("#parentLoginError").textContent = error.message; }
+    catch (error) { clearSession();
+     // 起動直後の一時的な権限エラーは1回だけ再試行する
+    if (String(error?.message || "").includes("permission denied for table students")) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      try {
+        await initializeLiff();
+        return;
+      } catch (retryError) {
+        clearSession();
+        $("#parentLoginError").textContent = error.message; }
+  }
+} else {
+      $("#parentLoginError").textContent = error.message;
+     }
   }
 }
 init();
