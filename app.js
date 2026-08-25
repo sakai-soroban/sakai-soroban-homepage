@@ -472,7 +472,11 @@ $("#absenceForm").addEventListener("submit", async event => {
   const button = event.submitter; button.disabled = true; button.textContent = "安全に送信しています…";
   try {
     const result = await submitAbsences(rows);
-    const selectedSlot = makeupSlots.find(slot => Number(slot.id) === slotId);
+    const selectedSlot = makeupSlots.find(
+  slot =>
+    Number(slot.id) === slotId &&
+    slot.lesson_date === selectedMakeupDate
+);
     $("#completeMessage").textContent = `${chosen.map(student => student.name).join("・")}さんの連絡を受け付けました。`;
     $("#completeSummary").innerHTML = `<div class="summary-row"><span>通常曜日</span><b>${escapeHtml($("#regularWeekday").value)}</b></div>
       <div class="summary-row"><span>欠席日</span><b>${formatDate($("#absenceDate").value)}</b></div>
