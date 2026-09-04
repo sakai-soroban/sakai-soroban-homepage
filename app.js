@@ -766,9 +766,6 @@ async function loadMakeupSlots() {
   renderCalendar();
 }
 
-
-/* ★ 消えていた関数を復活 */
-
 function chooseFirstAvailableSlot() {
   const room =
     $("#makeupClassroom").value;
@@ -1156,11 +1153,12 @@ function renderRecordList(
   $("#exportCurrentCsv")
     .addEventListener(
       "click",
-      () =>
-        exportRowsCsv(
+      async () => {
+        await exportRowsCsv(
           rows,
           csvNameForTab(currentTab)
-        )
+        );
+      }
     );
 }
 
@@ -1479,7 +1477,7 @@ function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-function exportRowsCsv(
+async function exportRowsCsv(
   rows,
   filename
 ) {
@@ -1488,6 +1486,17 @@ function exportRowsCsv(
       currentProfile?.role
     )
   ) {
+    return;
+  }
+
+  if (
+    !Array.isArray(rows) ||
+    rows.length === 0
+  ) {
+    toast(
+      "出力するデータがありません"
+    );
+
     return;
   }
 
@@ -1506,20 +1515,22 @@ function exportRowsCsv(
 
   const body =
     rows.map(row => [
-      row.receipt_number,
-      row.students?.name,
-      row.students?.classroom,
-      row.absence_date,
-      row.reason,
-      row.makeup_date,
-      row.makeup_classroom,
+      row.receipt_number || "",
+      row.students?.name || "",
+      row.students?.classroom || "",
+      row.absence_date || "",
+      row.reason || "",
+      row.makeup_date || "",
+      row.makeup_classroom || "",
       formatTime(row.makeup_slot),
-      row.status,
-      new Date(
-        row.created_at
-      ).toLocaleString(
-        "ja-JP"
-      )
+      row.status || "",
+      row.created_at
+        ? new Date(
+            row.created_at
+          ).toLocaleString(
+            "ja-JP"
+          )
+        : ""
     ]);
 
   const csv =
@@ -1532,28 +1543,101 @@ function exportRowsCsv(
       )
       .join("\r\n");
 
+  const blob =
+    new Blob(
+      [csv],
+      {
+        type:
+          "text/csv;charset=utf-8"
+      }
+    );
+
+  const file =
+    new File(
+      [blob],
+      filename,
+      {
+        type:
+          "text/csv;charset=utf-8"
+      }
+    );
+
+  /*
+   * iPhone / LINE内ブラウザ
+   * Web Share APIが使える場合は
+   * 共有シートを開く
+   */
+  try {
+    if (
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({
+        files: [file]
+      })
+    ) {
+      await navigator.share({
+        files: [file],
+        title: filename
+      });
+
+      return;
+    }
+  } catch (error) {
+    /*
+     * ユーザーが共有画面を
+     * 閉じただけの場合は終了
+     */
+    if (
+      error?.name ===
+      "AbortError"
+    ) {
+      return;
+    }
+
+    console.warn(
+      "CSV share failed:",
+      error
+    );
+  }
+
+  /*
+   * PC・共有非対応ブラウザでは
+   * 通常のダウンロード
+   */
   const url =
     URL.createObjectURL(
-      new Blob(
-        [csv],
-        {
-          type:
-            "text/csv;charset=utf-8"
-        }
-      )
+      blob
     );
 
   const link =
-    document.createElement("a");
+    document.createElement(
+      "a"
+    );
 
-  link.href = url;
-  link.download = filename;
+  link.href =
+    url;
+
+  link.download =
+    filename;
+
+  link.style.display =
+    "none";
+
+  document.body.appendChild(
+    link
+  );
+
   link.click();
 
+  link.remove();
+
   setTimeout(
-    () =>
-      URL.revokeObjectURL(url),
-    1000
+    () => {
+      URL.revokeObjectURL(
+        url
+      );
+    },
+    3000
   );
 }
 
@@ -1562,13 +1646,24 @@ async function exportNamedCsv(
   filename
 ) {
   try {
-    exportRowsCsv(
-      await loadTeacherRecords(tab),
+    const rows =
+      await loadTeacherRecords(
+        tab
+      );
+
+    await exportRowsCsv(
+      rows,
       filename
     );
   } catch (error) {
+    console.error(
+      "CSV export failed:",
+      error
+    );
+
     toast(
-      error.message
+      error?.message ||
+      "CSV出力に失敗しました"
     );
   }
 }
@@ -2225,31 +2320,34 @@ $("#clearFilters")
 $("#exportAbsenceCsv")
   .addEventListener(
     "click",
-    () =>
-      exportNamedCsv(
+    async () => {
+      await exportNamedCsv(
         "today",
         "欠席一覧.csv"
-      )
+      );
+    }
   );
 
 $("#exportMakeupCsv")
   .addEventListener(
     "click",
-    () =>
-      exportNamedCsv(
+    async () => {
+      await exportNamedCsv(
         "todayMakeups",
         "振替一覧.csv"
-      )
+      );
+    }
   );
 
 $("#exportPendingCsv")
   .addEventListener(
     "click",
-    () =>
-      exportNamedCsv(
+    async () => {
+      await exportNamedCsv(
         "pending",
         "未振替一覧.csv"
-      )
+      );
+    }
   );
 
 
