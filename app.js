@@ -28,6 +28,12 @@ function dateIso(offset = 0) {
   return localIso(date);
 }
 
+function dateIsoFrom(value, offset) {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + offset);
+  return localIso(date);
+}
+
 function formatDate(value) {
   if (!value) return "未定";
 
@@ -81,9 +87,7 @@ function ensureSecureTransport() {
     document.body.innerHTML =
       '<main class="security-block"><h1>安全な接続が必要です</h1><p>このサービスはHTTPS接続でのみ利用できます。</p></main>';
 
-    throw new Error(
-      "HTTPS is required"
-    );
+    throw new Error("HTTPS is required");
   }
 }
 
@@ -101,8 +105,7 @@ function apiHeaders(
 
     ...(token
       ? {
-          Authorization:
-            `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       : {}),
 
@@ -110,31 +113,24 @@ function apiHeaders(
   };
 }
 
-async function api(
-  path,
-  options = {}
-) {
-  if (
-    !isSupabaseConfigured()
-  ) {
+async function api(path, options = {}) {
+  if (!isSupabaseConfigured()) {
     throw new Error(
       "Supabase接続が未設定です。管理者へご連絡ください。"
     );
   }
 
-  const response =
-    await fetch(
-      `${config.supabaseUrl}${path}`,
-      {
-        ...options,
+  const response = await fetch(
+    `${config.supabaseUrl}${path}`,
+    {
+      ...options,
 
-        headers:
-          apiHeaders(
-            options.token,
-            options.headers
-          )
-      }
-    );
+      headers: apiHeaders(
+        options.token,
+        options.headers
+      )
+    }
+  );
 
   if (
     response.status === 401 &&
@@ -143,39 +139,28 @@ async function api(
   ) {
     await refreshSession();
 
-    return api(
-      path,
-      {
-        ...options,
-
-        token:
-          authSession.access_token,
-
-        noRefresh:
-          true
-      }
-    );
+    return api(path, {
+      ...options,
+      token: authSession.access_token,
+      noRefresh: true
+    });
   }
 
-  if (
-    !response.ok
-  ) {
-    const body =
-      await response
-        .json()
-        .catch(() => ({}));
+  if (!response.ok) {
+    const body = await response
+      .json()
+      .catch(() => ({}));
 
     throw new Error(
       body.message ||
       body.error_description ||
       body.hint ||
+      body.details ||
       "処理に失敗しました"
     );
   }
 
-  if (
-    response.status === 204
-  ) {
+  if (response.status === 204) {
     return null;
   }
 
@@ -197,13 +182,8 @@ function saveSession(session) {
 
     expires_at:
       session.expires_at ||
-      Math.floor(
-        Date.now() / 1000
-      ) +
-      Number(
-        session.expires_in ||
-        3600
-      ),
+      Math.floor(Date.now() / 1000) +
+        Number(session.expires_in || 3600),
 
     user: {
       id:
@@ -219,95 +199,65 @@ function clearSession() {
   authSession = null;
   currentProfile = null;
   parentChildren = [];
-  selectedChildIds =
-    new Set();
-  pendingLineIdToken =
-    null;
+  selectedChildIds = new Set();
+  pendingLineIdToken = null;
 
   $("#studentChoices")
     ?.replaceChildren();
 
-  if (
-    $("#parentLogoutButton")
-  ) {
-    $("#parentLogoutButton")
-      .hidden = true;
+  if ($("#parentLogoutButton")) {
+    $("#parentLogoutButton").hidden = true;
   }
 }
 
-async function signIn(
-  email,
-  password
-) {
-  const session =
-    await api(
-      "/auth/v1/token?grant_type=password",
-      {
-        method:
-          "POST",
+async function signIn(email, password) {
+  const session = await api(
+    "/auth/v1/token?grant_type=password",
+    {
+      method: "POST",
+      token: null,
+      noRefresh: true,
 
-        token:
-          null,
+      headers: {
+        "Content-Type": "application/json"
+      },
 
-        noRefresh:
-          true,
-
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
-
-        body:
-          JSON.stringify({
-            email,
-            password
-          })
-      }
-    );
-
-  saveSession(
-    session
+      body: JSON.stringify({
+        email,
+        password
+      })
+    }
   );
+
+  saveSession(session);
 }
 
 async function refreshSession() {
-  if (
-    !authSession?.refresh_token
-  ) {
+  if (!authSession?.refresh_token) {
     throw new Error(
       "再ログインが必要です"
     );
   }
 
-  const session =
-    await api(
-      "/auth/v1/token?grant_type=refresh_token",
-      {
-        method:
-          "POST",
+  const session = await api(
+    "/auth/v1/token?grant_type=refresh_token",
+    {
+      method: "POST",
+      token: null,
+      noRefresh: true,
 
-        token:
-          null,
+      headers: {
+        "Content-Type": "application/json"
+      },
 
-        noRefresh:
-          true,
-
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
-
-        body:
-          JSON.stringify({
-            refresh_token:
-              authSession.refresh_token
-          })
-      }
-    );
-
-  saveSession(
-    session
+      body: JSON.stringify({
+        refresh_token:
+          authSession.refresh_token
+      })
+    }
   );
+
+  saveSession(session);
 }
 
 async function signOut() {
@@ -318,20 +268,15 @@ async function signOut() {
     await api(
       "/auth/v1/logout",
       {
-        method:
-          "POST",
-
-        noRefresh:
-          true
+        method: "POST",
+        noRefresh: true
       }
     ).catch(() => {});
   }
 
   clearSession();
 
-  if (
-    window.liff?.isLoggedIn()
-  ) {
+  if (window.liff?.isLoggedIn()) {
     window.liff.logout();
   }
 }
@@ -342,28 +287,23 @@ async function signOut() {
 ========================= */
 
 async function loadOwnProfile() {
-  const rows =
-    await api(
-      `/rest/v1/profiles?id=eq.${encodeURIComponent(authSession.user.id)}&select=role,display_name`
-    );
+  const rows = await api(
+    `/rest/v1/profiles?id=eq.${encodeURIComponent(authSession.user.id)}&select=role,display_name`
+  );
 
-  if (
-    rows.length !== 1
-  ) {
+  if (rows.length !== 1) {
     throw new Error(
       "利用権限が登録されていません"
     );
   }
 
-  currentProfile =
-    rows[0];
+  currentProfile = rows[0];
 }
 
 async function loadOwnChildren() {
-  parentChildren =
-    await api(
-      "/rest/v1/students?select=id,name&order=id.asc"
-    );
+  parentChildren = await api(
+    "/rest/v1/students?select=id,name&order=id.asc"
+  );
 }
 
 
@@ -371,14 +311,10 @@ async function loadOwnChildren() {
    欠席・振替送信
 ========================= */
 
-async function submitAbsences(
-  items
-) {
+async function submitAbsences(items) {
   if (
     !config.absenceSubmitEndpoint ||
-    config.absenceSubmitEndpoint.includes(
-      "YOUR_"
-    )
+    config.absenceSubmitEndpoint.includes("YOUR_")
   ) {
     throw new Error(
       "欠席・振替受付APIが未設定です"
@@ -390,42 +326,34 @@ async function submitAbsences(
       ? window.liff.getIDToken()
       : pendingLineIdToken;
 
-  if (
-    !idToken
-  ) {
+  if (!idToken) {
     throw new Error(
       "LINE本人確認の有効期限が切れました。もう一度ログインしてください"
     );
   }
 
-  const response =
-    await fetch(
-      config.absenceSubmitEndpoint,
-      {
-        method:
-          "POST",
+  const response = await fetch(
+    config.absenceSubmitEndpoint,
+    {
+      method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
 
-        body:
-          JSON.stringify({
-            idToken,
-            items
-          })
-      }
-    );
+      body: JSON.stringify({
+        idToken,
+        items
+      })
+    }
+  );
 
-  const payload =
-    await response
-      .json()
-      .catch(() => ({}));
+  const payload = await response
+    .json()
+    .catch(() => ({}));
 
-  if (
-    !response.ok
-  ) {
+  if (!response.ok) {
     throw new Error(
       payload.message ||
       "申請処理に失敗しました"
@@ -445,12 +373,10 @@ function showView(id) {
     id === "parentView" &&
     (
       !authSession ||
-      currentProfile?.role !==
-        "guardian"
+      currentProfile?.role !== "guardian"
     )
   ) {
-    id =
-      "parentLoginView";
+    id = "parentLoginView";
   }
 
   if (
@@ -462,26 +388,21 @@ function showView(id) {
       currentProfile?.role
     )
   ) {
-    id =
-      "loginView";
+    id = "loginView";
   }
 
-  $$(".view")
-    .forEach(
-      view => {
-        view.classList.toggle(
-          "active",
-          view.id === id
-        );
-      }
-    );
+  $$(".view").forEach(
+    view => {
+      view.classList.toggle(
+        "active",
+        view.id === id
+      );
+    }
+  );
 
   scrollTo({
-    top:
-      0,
-
-    behavior:
-      "smooth"
+    top: 0,
+    behavior: "smooth"
   });
 }
 
@@ -563,8 +484,7 @@ function renderStudents() {
         () => {
           selectedChildIds.delete(
             Number(
-              button.dataset
-                .removeStudent
+              button.dataset.removeStudent
             )
           );
 
@@ -578,22 +498,11 @@ function renderStudents() {
       `${currentProfile.display_name || "保護者さま"}専用`;
 }
 
-function normalizeStudentName(
-  value
-) {
-  return String(
-    value || ""
-  )
-    .normalize(
-      "NFKC"
-    )
-    .replace(
-      /[\s　]+/g,
-      ""
-    )
-    .toLocaleLowerCase(
-      "ja-JP"
-    );
+function normalizeStudentName(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[\s　]+/g, "")
+    .toLocaleLowerCase("ja-JP");
 }
 
 function verifyStudentName() {
@@ -609,9 +518,7 @@ function verifyStudentName() {
     .textContent =
       "";
 
-  if (
-    !normalized
-  ) {
+  if (!normalized) {
     $("#studentMatchError")
       .textContent =
         "生徒名を入力してください";
@@ -624,13 +531,10 @@ function verifyStudentName() {
       student =>
         normalizeStudentName(
           student.name
-        ) ===
-        normalized
+        ) === normalized
     );
 
-  if (
-    !match
-  ) {
+  if (!match) {
     $("#studentMatchError")
       .textContent =
         "登録されているお子さまと一致しません";
@@ -642,8 +546,7 @@ function verifyStudentName() {
     match.id
   );
 
-  input.value =
-    "";
+  input.value = "";
 
   renderStudents();
 }
@@ -673,55 +576,44 @@ async function exchangeLineIdentity(
 
   if (
     !endpoint ||
-    endpoint.includes(
-      "YOUR_"
-    )
+    endpoint.includes("YOUR_")
   ) {
     throw new Error(
       "LINE認証APIが未設定です"
     );
   }
 
-  const response =
-    await fetch(
-      endpoint,
-      {
-        method:
-          "POST",
+  const response = await fetch(
+    endpoint,
+    {
+      method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
 
-        body:
-          JSON.stringify({
-            idToken,
-            linkCode
-          })
-      }
-    );
+      body: JSON.stringify({
+        idToken,
+        linkCode
+      })
+    }
+  );
 
-  const payload =
-    await response
-      .json()
-      .catch(() => ({}));
+  const payload = await response
+    .json()
+    .catch(() => ({}));
 
   if (
-    response.status ===
-      409 &&
-    payload.code ===
-      "LINK_REQUIRED"
+    response.status === 409 &&
+    payload.code === "LINK_REQUIRED"
   ) {
     return {
-      linkRequired:
-        true
+      linkRequired: true
     };
   }
 
-  if (
-    !response.ok
-  ) {
+  if (!response.ok) {
     throw new Error(
       payload.message ||
       "LINE本人確認に失敗しました"
@@ -735,8 +627,7 @@ async function exchangeLineIdentity(
   await loadOwnProfile();
 
   if (
-    currentProfile.role !==
-    "guardian"
+    currentProfile.role !== "guardian"
   ) {
     throw new Error(
       "保護者アカウントではありません"
@@ -761,8 +652,7 @@ async function exchangeLineIdentity(
   );
 
   return {
-    linkRequired:
-      false
+    linkRequired: false
   };
 }
 
@@ -784,34 +674,26 @@ async function initializeLiff({
       false
   });
 
-  if (
-    !window.liff.isLoggedIn()
-  ) {
+  if (!window.liff.isLoggedIn()) {
     return false;
   }
 
   pendingLineIdToken =
     window.liff.getIDToken();
 
-  if (
-    !pendingLineIdToken
-  ) {
+  if (!pendingLineIdToken) {
     throw new Error(
       "LINEの本人確認情報を取得できませんでした"
     );
   }
 
-  if (
-    autoExchange
-  ) {
+  if (autoExchange) {
     const result =
       await exchangeLineIdentity(
         pendingLineIdToken
       );
 
-    if (
-      result.linkRequired
-    ) {
+    if (result.linkRequired) {
       showView(
         "linkView"
       );
@@ -861,9 +743,7 @@ function renderCalendar() {
       `${year}年 ${month + 1}月`;
 
   let html =
-    Array(
-      firstDay
-    )
+    Array(firstDay)
       .fill(
         '<button class="day blank" type="button" disabled></button>'
       )
@@ -889,10 +769,8 @@ function renderCalendar() {
     const daySlots =
       makeupSlots.filter(
         slot =>
-          slot.lesson_date ===
-            value &&
-          slot.classroom ===
-            room
+          slot.lesson_date === value &&
+          slot.classroom === room
       );
 
     const hasSpace =
@@ -952,7 +830,6 @@ function renderCalendar() {
                 selectedMakeupDate;
 
             renderCalendar();
-
             renderMakeupSlotOptions();
           }
         )
@@ -972,8 +849,7 @@ async function loadMakeupSlots() {
     await api(
       "/rest/v1/rpc/available_makeup_slots",
       {
-        method:
-          "POST",
+        method: "POST",
 
         headers: {
           "Content-Type":
@@ -982,14 +858,9 @@ async function loadMakeupSlots() {
 
         body:
           JSON.stringify({
-            p_from:
-              from,
-
-            p_to:
-              to,
-
-            p_classroom:
-              null
+            p_from: from,
+            p_to: to,
+            p_classroom: null
           })
       }
     );
@@ -1007,11 +878,9 @@ function chooseFirstAvailableSlot() {
   const available =
     makeupSlots.find(
       slot =>
-        slot.classroom ===
-          room &&
+        slot.classroom === room &&
         !slot.is_full &&
-        slot.lesson_date >=
-          dateIso()
+        slot.lesson_date >= dateIso()
     );
 
   const currentDateHasSpace =
@@ -1145,18 +1014,14 @@ function buildRecordQuery(
       .value
       .trim();
 
-  if (
-    tab === "today"
-  ) {
+  if (tab === "today") {
     params.set(
       "absence_date",
       `eq.${dateIso()}`
     );
   }
 
-  if (
-    tab === "todayMakeups"
-  ) {
+  if (tab === "todayMakeups") {
     params.set(
       "makeup_date",
       `eq.${dateIso()}`
@@ -1168,36 +1033,28 @@ function buildRecordQuery(
     );
   }
 
-  if (
-    tab === "pending"
-  ) {
+  if (tab === "pending") {
     params.set(
       "status",
       "eq.pending"
     );
   }
 
-  if (
-    room !== "all"
-  ) {
+  if (room !== "all") {
     params.set(
       "students.classroom",
       `eq.${room}`
     );
   }
 
-  if (
-    search
-  ) {
+  if (search) {
     params.set(
       "students.name",
       `ilike.*${search.replaceAll("*", "")}*`
     );
   }
 
-  if (
-    date
-  ) {
+  if (date) {
     params.set(
       "or",
       `(absence_date.eq.${date},makeup_date.eq.${date})`
@@ -1221,8 +1078,7 @@ async function loadDashboardCounts() {
   return api(
     "/rest/v1/rpc/teacher_dashboard_counts",
     {
-      method:
-        "POST",
+      method: "POST",
 
       headers: {
         "Content-Type":
@@ -1232,8 +1088,7 @@ async function loadDashboardCounts() {
       body:
         JSON.stringify({
           p_classroom:
-            $("#classroomFilter").value ===
-            "all"
+            $("#classroomFilter").value === "all"
               ? null
               : $("#classroomFilter").value,
 
@@ -1257,6 +1112,605 @@ async function loadAuditLogs() {
   );
 }
 
+
+/* =========================
+   管理者用「休講日」タブ
+========================= */
+
+function ensureAdminClosureTab() {
+  if (
+    currentProfile?.role !==
+    "admin"
+  ) {
+    return;
+  }
+
+  if (
+    document.querySelector(
+      '.admin-tab[data-tab="closures"]'
+    )
+  ) {
+    return;
+  }
+
+  const existingTab =
+    document.querySelector(
+      '.admin-tab[data-tab="slots"]'
+    ) ||
+    document.querySelector(
+      ".admin-tab"
+    );
+
+  if (
+    !existingTab ||
+    !existingTab.parentElement
+  ) {
+    return;
+  }
+
+  const button =
+    document.createElement(
+      "button"
+    );
+
+  button.type =
+    "button";
+
+  button.className =
+    "admin-tab";
+
+  button.dataset.tab =
+    "closures";
+
+  button.textContent =
+    "休講日";
+
+  button.addEventListener(
+    "click",
+    async () => {
+      $$(".admin-tab")
+        .forEach(
+          tab =>
+            tab.classList.remove(
+              "active"
+            )
+        );
+
+      button.classList.add(
+        "active"
+      );
+
+      currentTab =
+        "closures";
+
+      await renderAdmin();
+    }
+  );
+
+  existingTab
+    .parentElement
+    .appendChild(
+      button
+    );
+}
+
+
+/* =========================
+   休講日管理
+========================= */
+
+function currentMonthValue() {
+  const today =
+    new Date();
+
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthRange(
+  monthValue
+) {
+  const match =
+    /^(\d{4})-(\d{2})$/.exec(
+      monthValue
+    );
+
+  if (!match) {
+    const fallback =
+      currentMonthValue();
+
+    return monthRange(
+      fallback
+    );
+  }
+
+  const year =
+    Number(match[1]);
+
+  const month =
+    Number(match[2]);
+
+  const first =
+    new Date(
+      year,
+      month - 1,
+      1
+    );
+
+  const last =
+    new Date(
+      year,
+      month,
+      0
+    );
+
+  return {
+    from:
+      localIso(first),
+
+    to:
+      localIso(last)
+  };
+}
+
+async function loadAdminClassrooms() {
+  return api(
+    "/rest/v1/classrooms?select=id,name,active&active=eq.true&order=id.asc"
+  );
+}
+
+async function loadAdminClosures(
+  monthValue
+) {
+  const range =
+    monthRange(
+      monthValue
+    );
+
+  return api(
+    "/rest/v1/rpc/admin_closure_list",
+    {
+      method:
+        "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
+
+      body:
+        JSON.stringify({
+          p_from:
+            range.from,
+
+          p_to:
+            range.to
+        })
+    }
+  );
+}
+
+async function addAdminClosure({
+  closureDate,
+  classroomId,
+  reason
+}) {
+  return api(
+    "/rest/v1/rpc/admin_add_closure",
+    {
+      method:
+        "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
+
+      body:
+        JSON.stringify({
+          p_closure_date:
+            closureDate,
+
+          p_classroom_id:
+            classroomId,
+
+          p_reason:
+            reason || null
+        })
+    }
+  );
+}
+
+async function deleteAdminClosure(
+  id
+) {
+  return api(
+    "/rest/v1/rpc/admin_delete_closure",
+    {
+      method:
+        "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
+
+      body:
+        JSON.stringify({
+          p_id:
+            Number(id)
+        })
+    }
+  );
+}
+
+async function renderClosuresAdmin(
+  monthValue = null
+) {
+  if (
+    currentProfile?.role !==
+    "admin"
+  ) {
+    $("#stats")
+      .innerHTML =
+        "";
+
+    $("#adminContent")
+      .innerHTML =
+        '<div class="empty">休講日の変更は管理者のみ利用できます。</div>';
+
+    return;
+  }
+
+  $("#stats")
+    .innerHTML =
+      "";
+
+  const selectedMonth =
+    monthValue ||
+    $("#closureMonth")
+      ?.value ||
+    currentMonthValue();
+
+  const [
+    classrooms,
+    closures
+  ] =
+    await Promise.all([
+      loadAdminClassrooms(),
+      loadAdminClosures(
+        selectedMonth
+      )
+    ]);
+
+  $("#adminContent")
+    .innerHTML = `
+      <div class="list-title">
+        <h2>
+          休講日管理
+        </h2>
+
+        <span class="badge">
+          ${closures.length}件
+        </span>
+      </div>
+
+      <div
+        class="slot-form"
+        style="margin-bottom:24px;"
+      >
+        <label>
+          表示する月
+
+          <input
+            id="closureMonth"
+            type="month"
+            value="${escapeHtml(selectedMonth)}"
+          >
+        </label>
+      </div>
+
+      <form
+        id="closureForm"
+        class="slot-form"
+      >
+        <label>
+          休講日
+
+          <input
+            id="closureDate"
+            type="date"
+            required
+          >
+        </label>
+
+        <label>
+          対象教室
+
+          <select
+            id="closureClassroom"
+          >
+            <option value="">
+              全教室
+            </option>
+
+            ${
+              classrooms
+                .map(
+                  room => `
+                    <option
+                      value="${room.id}"
+                    >
+                      ${escapeHtml(room.name)}
+                    </option>
+                  `
+                )
+                .join("")
+            }
+          </select>
+        </label>
+
+        <label>
+          理由
+
+          <input
+            id="closureReason"
+            type="text"
+            maxlength="100"
+            placeholder="例：祝日・夏季休業・教室都合"
+          >
+        </label>
+
+        <button
+          class="primary-button"
+          type="submit"
+        >
+          休講日を追加
+        </button>
+      </form>
+
+      <p
+        class="privacy-note compact"
+        style="margin-top:18px;"
+      >
+        登録した日は保護者の振替候補から自動的に除外されます。
+      </p>
+
+      <div
+        class="slot-list"
+        style="margin-top:20px;"
+      >
+        ${
+          closures.length
+            ? closures
+                .map(
+                  row => `
+                    <div
+                      class="slot-row"
+                    >
+                      <div>
+                        <b>
+                          ${formatDate(row.closure_date)}
+                        </b>
+
+                        <span>
+                          ${
+                            row.classroom
+                              ? escapeHtml(row.classroom)
+                              : "全教室"
+                          }
+                        </span>
+
+                        ${
+                          row.reason
+                            ? `
+                              <span>
+                                ${escapeHtml(row.reason)}
+                              </span>
+                            `
+                            : ""
+                        }
+                      </div>
+
+                      <button
+                        class="small-button"
+                        type="button"
+                        data-delete-closure="${row.id}"
+                      >
+                        削除
+                      </button>
+                    </div>
+                  `
+                )
+                .join("")
+            : '<div class="empty">この月の休講日は登録されていません</div>'
+        }
+      </div>
+    `;
+
+  const dateInput =
+    $("#closureDate");
+
+  if (dateInput) {
+    const range =
+      monthRange(
+        selectedMonth
+      );
+
+    dateInput.value =
+      range.from;
+
+    dateInput.min =
+      range.from;
+
+    dateInput.max =
+      range.to;
+  }
+
+  $("#closureMonth")
+    ?.addEventListener(
+      "change",
+      async event => {
+        await renderClosuresAdmin(
+          event.target.value
+        );
+      }
+    );
+
+  $("#closureForm")
+    ?.addEventListener(
+      "submit",
+      saveClosureForm
+    );
+
+  $$(
+    "[data-delete-closure]"
+  ).forEach(
+    button =>
+      button.addEventListener(
+        "click",
+        async () => {
+          const id =
+            Number(
+              button.dataset
+                .deleteClosure
+            );
+
+          if (
+            !Number.isSafeInteger(id) ||
+            id < 1
+          ) {
+            return;
+          }
+
+          button.disabled =
+            true;
+
+          try {
+            await deleteAdminClosure(
+              id
+            );
+
+            toast(
+              "休講日を削除しました"
+            );
+
+            await renderClosuresAdmin(
+              $("#closureMonth")
+                ?.value ||
+              selectedMonth
+            );
+          } catch (error) {
+            toast(
+              error.message
+            );
+
+            button.disabled =
+              false;
+          }
+        }
+      )
+  );
+}
+
+async function saveClosureForm(
+  event
+) {
+  event.preventDefault();
+
+  if (
+    currentProfile?.role !==
+    "admin"
+  ) {
+    return toast(
+      "管理者のみ変更できます"
+    );
+  }
+
+  const button =
+    event.submitter;
+
+  button.disabled =
+    true;
+
+  const closureDate =
+    $("#closureDate")
+      .value;
+
+  const classroomValue =
+    $("#closureClassroom")
+      .value;
+
+  const reason =
+    $("#closureReason")
+      .value
+      .trim();
+
+  if (!closureDate) {
+    button.disabled =
+      false;
+
+    return toast(
+      "休講日を選択してください"
+    );
+  }
+
+  const classroomId =
+    classroomValue
+      ? Number(classroomValue)
+      : null;
+
+  if (
+    classroomValue &&
+    (
+      !Number.isSafeInteger(
+        classroomId
+      ) ||
+      classroomId < 1
+    )
+  ) {
+    button.disabled =
+      false;
+
+    return toast(
+      "教室情報が正しくありません"
+    );
+  }
+
+  try {
+    await addAdminClosure({
+      closureDate,
+      classroomId,
+      reason
+    });
+
+    toast(
+      "休講日を登録しました"
+    );
+
+    const month =
+      closureDate.slice(
+        0,
+        7
+      );
+
+    await renderClosuresAdmin(
+      month
+    );
+  } catch (error) {
+    toast(
+      error.message
+    );
+
+    button.disabled =
+      false;
+  }
+}
+
+
+/* =========================
+   管理画面本体
+========================= */
+
 async function renderAdmin() {
   if (
     ![
@@ -1270,6 +1724,8 @@ async function renderAdmin() {
       "loginView"
     );
   }
+
+  ensureAdminClosureTab();
 
   $("#adminContent")
     .innerHTML =
@@ -1292,6 +1748,15 @@ async function renderAdmin() {
       "slots"
     ) {
       await renderClassSlots();
+
+      return;
+    }
+
+    if (
+      currentTab ===
+      "closures"
+    ) {
+      await renderClosuresAdmin();
 
       return;
     }
@@ -1370,9 +1835,7 @@ async function renderAdmin() {
 
       records
     );
-  } catch (
-    error
-  ) {
+  } catch (error) {
     $("#adminContent")
       .innerHTML =
         `<div class="empty">${escapeHtml(error.message)}</div>`;
@@ -1415,12 +1878,10 @@ function renderRecordList(
                     {};
 
                   const status =
-                    row.status ===
-                    "reserved"
+                    row.status === "reserved"
                       ? `<span class="tag green">振替 ${formatDate(row.makeup_date)} ${escapeHtml(formatTime(row.makeup_slot))}〜</span>`
 
-                      : row.status ===
-                        "pending"
+                      : row.status === "pending"
                         ? '<span class="tag orange">振替日未定</span>'
 
                         : '<span class="tag">振替なし</span>';
@@ -1461,10 +1922,8 @@ function renderRecordList(
                       </p>
 
                       ${
-                        row.status ===
-                        "pending"
+                        row.status === "pending"
                           ? '<span class="tag orange">空き枠を確認して設定</span>'
-
                           : '<span class="tag">確認済み</span>'
                       }
                     </div>
@@ -1496,19 +1955,6 @@ function renderRecordList(
    授業枠・定員
 ========================= */
 
-/*
- * ここが今回の修正箇所。
- *
- * 存在しない
- * teacher_class_slot_status
- * は使用しない。
- *
- * 保護者画面ですでに
- * 正常稼働している
- * available_makeup_slots
- * を使用する。
- */
-
 async function loadClassSlots() {
   const start =
     $("#dateFilter").value ||
@@ -1517,8 +1963,7 @@ async function loadClassSlots() {
   return api(
     "/rest/v1/rpc/available_makeup_slots",
     {
-      method:
-        "POST",
+      method: "POST",
 
       headers: {
         "Content-Type":
@@ -1546,25 +1991,6 @@ async function loadClassSlots() {
   );
 }
 
-function dateIsoFrom(
-  value,
-  offset
-) {
-  const date =
-    new Date(
-      `${value}T00:00:00`
-    );
-
-  date.setDate(
-    date.getDate() +
-    offset
-  );
-
-  return localIso(
-    date
-  );
-}
-
 async function renderClassSlots() {
   $("#stats")
     .innerHTML =
@@ -1574,8 +2000,7 @@ async function renderClassSlots() {
     await loadClassSlots();
 
   const adminForm =
-    currentProfile.role ===
-      "admin"
+    currentProfile.role === "admin"
 
       ? `
         <form
@@ -1697,8 +2122,7 @@ async function renderClassSlots() {
                       </div>
 
                       ${
-                        currentProfile.role ===
-                        "admin"
+                        currentProfile.role === "admin"
 
                           ? `
                             <button
@@ -1777,8 +2201,7 @@ async function saveSlotForm(
     await api(
       "/rest/v1/rpc/admin_upsert_class_slot",
       {
-        method:
-          "POST",
+        method: "POST",
 
         headers: {
           "Content-Type":
@@ -1812,9 +2235,7 @@ async function saveSlotForm(
     );
 
     await renderClassSlots();
-  } catch (
-    error
-  ) {
+  } catch (error) {
     toast(
       error.message
     );
@@ -1852,9 +2273,7 @@ function csvNameForTab(
   );
 }
 
-function csvCell(
-  value
-) {
+function csvCell(value) {
   let text =
     String(
       value ?? ""
@@ -1896,11 +2315,8 @@ async function exportRowsCsv(
   }
 
   if (
-    !Array.isArray(
-      rows
-    ) ||
-    rows.length ===
-      0
+    !Array.isArray(rows) ||
+    rows.length === 0
   ) {
     toast(
       "出力するデータがありません"
@@ -1925,34 +2341,17 @@ async function exportRowsCsv(
   const body =
     rows.map(
       row => [
-        row.receipt_number ||
-          "",
-
-        row.students?.name ||
-          "",
-
-        row.students?.classroom ||
-          "",
-
-        row.absence_date ||
-          "",
-
-        row.reason ||
-          "",
-
-        row.makeup_date ||
-          "",
-
-        row.makeup_classroom ||
-          "",
-
+        row.receipt_number || "",
+        row.students?.name || "",
+        row.students?.classroom || "",
+        row.absence_date || "",
+        row.reason || "",
+        row.makeup_date || "",
+        row.makeup_classroom || "",
         formatTime(
           row.makeup_slot
         ),
-
-        row.status ||
-          "",
-
+        row.status || "",
         row.created_at
           ? new Date(
               row.created_at
@@ -1983,9 +2382,7 @@ async function exportRowsCsv(
 
   const blob =
     new Blob(
-      [
-        csv
-      ],
+      [csv],
       {
         type:
           "text/csv;charset=utf-8"
@@ -1994,9 +2391,7 @@ async function exportRowsCsv(
 
   const file =
     new File(
-      [
-        blob
-      ],
+      [blob],
       filename,
       {
         type:
@@ -2004,27 +2399,18 @@ async function exportRowsCsv(
       }
     );
 
-  /*
-   * iPhone / LINE内ブラウザ
-   * Web Share API対応の場合
-   */
-
   try {
     if (
       navigator.share &&
       navigator.canShare &&
       navigator.canShare({
         files:
-          [
-            file
-          ]
+          [file]
       })
     ) {
       await navigator.share({
         files:
-          [
-            file
-          ],
+          [file],
 
         title:
           filename
@@ -2032,9 +2418,7 @@ async function exportRowsCsv(
 
       return;
     }
-  } catch (
-    error
-  ) {
+  } catch (error) {
     if (
       error?.name ===
       "AbortError"
@@ -2047,10 +2431,6 @@ async function exportRowsCsv(
       error
     );
   }
-
-  /*
-   * PC・共有非対応ブラウザ
-   */
 
   const url =
     URL.createObjectURL(
@@ -2103,9 +2483,7 @@ async function exportNamedCsv(
       rows,
       filename
     );
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       "CSV export failed:",
       error
@@ -2186,15 +2564,11 @@ function renderAuditList(
    トースト
 ========================= */
 
-function toast(
-  message
-) {
+function toast(message) {
   const node =
     $("#toast");
 
-  if (
-    !node
-  ) {
+  if (!node) {
     console.log(
       message
     );
@@ -2219,7 +2593,6 @@ function toast(
         node.classList.remove(
           "show"
         ),
-
       2400
     );
 }
@@ -2290,7 +2663,6 @@ $("#makeupClassroom")
     "change",
     () => {
       chooseFirstAvailableSlot();
-
       renderCalendar();
     }
   );
@@ -2318,7 +2690,7 @@ $("#studentNameInput")
 
 
 /* =========================
-   LINEログインボタン
+   LINEログイン
 ========================= */
 
 $("#lineLoginButton")
@@ -2381,9 +2753,7 @@ $("#lineLoginButton")
             "linkView"
           );
         }
-      } catch (
-        error
-      ) {
+      } catch (error) {
         clearSession();
 
         $("#parentLoginError")
@@ -2438,9 +2808,7 @@ $("#linkForm")
         $("#linkCode")
           .value =
             "";
-      } catch (
-        error
-      ) {
+      } catch (error) {
         $("#linkError")
           .textContent =
             error.message;
@@ -2488,6 +2856,8 @@ $("#loginForm")
           );
         }
 
+        ensureAdminClosureTab();
+
         $("#todayLabel")
           .textContent =
             new Intl.DateTimeFormat(
@@ -2518,9 +2888,7 @@ $("#loginForm")
         );
 
         await renderAdmin();
-      } catch (
-        error
-      ) {
+      } catch (error) {
         clearSession();
 
         $("#loginError")
@@ -2633,8 +3001,7 @@ $("#absenceForm")
             slot =>
               Number(
                 slot.id
-              ) ===
-                slotId &&
+              ) === slotId &&
               slot.lesson_date ===
                 selectedMakeupDate
           );
@@ -2705,9 +3072,7 @@ $("#absenceForm")
         showView(
           "completeView"
         );
-      } catch (
-        error
-      ) {
+      } catch (error) {
         toast(
           error.message
         );
@@ -2729,7 +3094,18 @@ $("#absenceForm")
 $("#teacherLink")
   ?.addEventListener(
     "click",
-    () =>
+    () => {
+      if (
+        [
+          "teacher",
+          "admin"
+        ].includes(
+          currentProfile?.role
+        )
+      ) {
+        ensureAdminClosureTab();
+      }
+
       showView(
         [
           "teacher",
@@ -2739,7 +3115,8 @@ $("#teacherLink")
         )
           ? "teacherView"
           : "loginView"
-      )
+      );
+    }
   );
 
 $("#homeButton")
@@ -2748,7 +3125,7 @@ $("#homeButton")
     () =>
       showView(
         currentProfile?.role ===
-        "guardian"
+          "guardian"
           ? "parentView"
           : "parentLoginView"
       )
@@ -2944,16 +3321,8 @@ async function init() {
   ) {
     try {
       await initializeLiff();
-    } catch (
-      error
-    ) {
+    } catch (error) {
       clearSession();
-
-      /*
-       * 起動直後だけ発生する
-       * students権限エラーは
-       * ログイン画面には表示しない。
-       */
 
       if (
         !String(
