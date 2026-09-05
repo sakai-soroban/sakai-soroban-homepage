@@ -947,8 +947,7 @@ function renderMakeupSlotOptions() {
             )
             .join("")
         : '<option value="">この日の授業枠はありません</option>';
-
-  const selectable =
+ const selectable =
     slots.find(
       slot =>
         !slot.is_full
@@ -1707,6 +1706,375 @@ async function saveClosureForm(
 }
 
 
+
+/* =========================
+   生徒管理
+========================= */
+
+async function loadAdminStudents() {
+  return api(
+    "/rest/v1/rpc/admin_student_list",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    }
+  );
+}
+
+async function loadAdminGuardians() {
+  return api(
+    "/rest/v1/rpc/admin_guardian_list",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    }
+  );
+}
+
+async function upsertAdminStudent({
+  id,
+  name,
+  classroomId,
+  grade,
+  regular,
+  active,
+  guardianId
+}) {
+  return api(
+    "/rest/v1/rpc/admin_upsert_student",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_id: id ?? null,
+        p_name: name,
+        p_classroom_id: classroomId,
+        p_grade: grade || null,
+        p_regular: regular || null,
+        p_active: active,
+        p_guardian_id: guardianId || null
+      })
+    }
+  );
+}
+
+function studentGuardianName(student, guardians) {
+  if (!student.guardian_id) {
+    return "未設定";
+  }
+
+  return guardians.find(
+    guardian => guardian.id === student.guardian_id
+  )?.display_name || "登録済み保護者";
+}
+
+async function renderStudentsAdmin() {
+  if (currentProfile?.role !== "admin") {
+    $("#stats").innerHTML = "";
+    $("#adminContent").innerHTML =
+      '<div class="empty">生徒情報の変更は管理者のみ利用できます。</div>';
+    return;
+  }
+
+  $("#stats").innerHTML = "";
+
+  const [students, classrooms, guardians] =
+    await Promise.all([
+      loadAdminStudents(),
+      loadAdminClassrooms(),
+      loadAdminGuardians()
+    ]);
+
+  const activeCount = students.filter(
+    student => student.active
+  ).length;
+
+  $("#adminContent").innerHTML = `
+    <div class="list-title">
+      <h2>生徒管理</h2>
+      <span class="badge">在籍 ${activeCount}名</span>
+    </div>
+
+    <form id="studentAdminForm" class="slot-form">
+      <input id="studentAdminId" type="hidden" value="">
+
+      <label>
+        生徒名
+        <input
+          id="studentAdminName"
+          type="text"
+          maxlength="100"
+          placeholder="例：山田 さくら"
+          required
+        >
+      </label>
+
+      <label>
+        所属教室
+        <select id="studentAdminClassroom" required>
+          <option value="">教室を選択</option>
+          ${classrooms.map(room => `
+            <option value="${room.id}">
+              ${escapeHtml(room.name)}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+
+      <label>
+        学年
+        <input
+          id="studentAdminGrade"
+          type="text"
+          maxlength="30"
+          placeholder="例：小3"
+        >
+      </label>
+
+      <label>
+        通常の通塾曜日
+        <select id="studentAdminRegular">
+          <option value="">未設定</option>
+          <option>月曜日</option>
+          <option>火曜日</option>
+          <option>水曜日</option>
+          <option>木曜日</option>
+          <option>金曜日</option>
+          <option>土曜日</option>
+          <option>日曜日</option>
+        </select>
+      </label>
+
+      <label>
+        保護者
+        <select id="studentAdminGuardian">
+          <option value="">未設定</option>
+          ${guardians.map(guardian => `
+            <option value="${escapeHtml(guardian.id)}">
+              ${escapeHtml(guardian.display_name || "名称未設定")}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+
+      <label>
+        在籍状態
+        <select id="studentAdminActive">
+          <option value="true">在籍</option>
+          <option value="false">退会・休止</option>
+        </select>
+      </label>
+
+      <button class="primary-button" type="submit">
+        生徒情報を保存
+      </button>
+
+      <button
+        id="studentAdminNew"
+        class="outline-button"
+        type="button"
+      >
+        新規入力に戻す
+      </button>
+    </form>
+
+    <p class="privacy-note compact" style="margin-top:18px;">
+      生徒情報の変更は今後の欠席・振替申請に自動反映されます。
+    </p>
+
+    <div class="slot-list" style="margin-top:20px;">
+      ${students.length
+        ? students.map(student => `
+            <div class="slot-row ${student.active ? "" : "is-full"}">
+              <div>
+                <b>${escapeHtml(student.name)}</b>
+                <span>
+                  ${escapeHtml(student.classroom || "教室未設定")}
+                  ／ ${escapeHtml(student.grade || "学年未設定")}
+                </span>
+                <span>
+                  通常：${escapeHtml(student.regular || "未設定")}
+                  ／ 保護者：${escapeHtml(studentGuardianName(student, guardians))}
+                </span>
+                <span>
+                  ${student.active ? "在籍" : "退会・休止"}
+                </span>
+              </div>
+
+              <button
+                class="small-button"
+                type="button"
+                data-edit-student="${student.id}"
+              >
+                編集
+              </button>
+            </div>
+          `).join("")
+        : '<div class="empty">登録されている生徒はいません</div>'}
+    </div>
+  `;
+
+  const resetStudentForm = () => {
+    $("#studentAdminId").value = "";
+    $("#studentAdminName").value = "";
+    $("#studentAdminClassroom").value = "";
+    $("#studentAdminGrade").value = "";
+    $("#studentAdminRegular").value = "";
+    $("#studentAdminGuardian").value = "";
+    $("#studentAdminActive").value = "true";
+    $("#studentAdminName").focus();
+  };
+
+  $("#studentAdminNew")
+    ?.addEventListener(
+      "click",
+      resetStudentForm
+    );
+
+  $("#studentAdminForm")
+    ?.addEventListener(
+      "submit",
+      saveStudentAdminForm
+    );
+
+  $$('[data-edit-student]')
+    .forEach(button =>
+      button.addEventListener(
+        "click",
+        () => {
+          const id = Number(
+            button.dataset.editStudent
+          );
+
+          const student = students.find(
+            row => Number(row.id) === id
+          );
+
+          if (!student) {
+            return;
+          }
+
+          $("#studentAdminId").value =
+            String(student.id);
+
+          $("#studentAdminName").value =
+            student.name || "";
+
+          $("#studentAdminClassroom").value =
+            student.classroom_id == null
+              ? ""
+              : String(student.classroom_id);
+
+          $("#studentAdminGrade").value =
+            student.grade || "";
+
+          $("#studentAdminRegular").value =
+            student.regular || "";
+
+          $("#studentAdminGuardian").value =
+            student.guardian_id || "";
+
+          $("#studentAdminActive").value =
+            student.active ? "true" : "false";
+
+          $("#studentAdminName").focus();
+          $("#studentAdminForm").scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        }
+      )
+    );
+}
+
+async function saveStudentAdminForm(event) {
+  event.preventDefault();
+
+  if (currentProfile?.role !== "admin") {
+    return toast(
+      "管理者のみ変更できます"
+    );
+  }
+
+  const button = event.submitter;
+  button.disabled = true;
+
+  try {
+    const idValue =
+      $("#studentAdminId").value;
+
+    const classroomId = Number(
+      $("#studentAdminClassroom").value
+    );
+
+    if (
+      !Number.isSafeInteger(classroomId) ||
+      classroomId < 1
+    ) {
+      throw new Error(
+        "所属教室を選択してください"
+      );
+    }
+
+    const id = idValue
+      ? Number(idValue)
+      : null;
+
+    if (
+      idValue &&
+      (!Number.isSafeInteger(id) || id < 1)
+    ) {
+      throw new Error(
+        "生徒IDが正しくありません"
+      );
+    }
+
+    await upsertAdminStudent({
+      id,
+      name:
+        $("#studentAdminName")
+          .value
+          .trim(),
+      classroomId,
+      grade:
+        $("#studentAdminGrade")
+          .value
+          .trim(),
+      regular:
+        $("#studentAdminRegular")
+          .value,
+      active:
+        $("#studentAdminActive")
+          .value === "true",
+      guardianId:
+        $("#studentAdminGuardian")
+          .value || null
+    });
+
+    toast(
+      id
+        ? "生徒情報を更新しました"
+        : "生徒を登録しました"
+    );
+
+    await renderStudentsAdmin();
+  } catch (error) {
+    toast(
+      error.message
+    );
+    button.disabled = false;
+  }
+}
+
+
 /* =========================
    管理画面本体
 ========================= */
@@ -1757,6 +2125,15 @@ async function renderAdmin() {
       "closures"
     ) {
       await renderClosuresAdmin();
+
+      return;
+    }
+
+    if (
+      currentTab ===
+      "students"
+    ) {
+      await renderStudentsAdmin();
 
       return;
     }
