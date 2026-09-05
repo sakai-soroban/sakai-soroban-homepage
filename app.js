@@ -302,7 +302,7 @@ async function loadOwnProfile() {
 
 async function loadOwnChildren() {
   parentChildren = await api(
-    "/rest/v1/students?select=id,name&order=id.asc"
+    "/rest/v1/students?select=id,name,classroom,classroom_id,grade,regular,active&active=eq.true&order=id.asc"
   );
 }
 
@@ -947,8 +947,9 @@ function renderMakeupSlotOptions() {
             )
             .join("")
         : '<option value="">この日の授業枠はありません</option>';
- const selectable =
-    slots.find(
+
+  const selectable =
+         slots.find(
       slot =>
         !slot.is_full
     );
@@ -1776,6 +1777,41 @@ function studentGuardianName(student, guardians) {
   )?.display_name || "登録済み保護者";
 }
 
+const STUDENT_WEEKDAYS = [
+  "月曜日",
+  "火曜日",
+  "水曜日",
+  "木曜日",
+  "金曜日",
+  "土曜日"
+];
+
+function parseStudentWeekdays(value) {
+  const source = String(value || "");
+
+  return STUDENT_WEEKDAYS.filter(day => {
+    const shortDay = day.replace("曜日", "");
+    return source.includes(day) || source.includes(shortDay);
+  });
+}
+
+function selectedStudentWeekdays() {
+  return $$(".student-admin-regular:checked")
+    .map(input => input.value)
+    .filter(day => STUDENT_WEEKDAYS.includes(day));
+}
+
+function setStudentWeekdayChecks(value) {
+  const selected = new Set(
+    parseStudentWeekdays(value)
+  );
+
+  $$(".student-admin-regular")
+    .forEach(input => {
+      input.checked = selected.has(input.value);
+    });
+}
+
 async function renderStudentsAdmin() {
   if (currentProfile?.role !== "admin") {
     $("#stats").innerHTML = "";
@@ -1839,26 +1875,31 @@ async function renderStudentsAdmin() {
         >
       </label>
 
-      <label>
-        通常の通塾曜日
-        <select id="studentAdminRegular">
-          <option value="">未設定</option>
-          <option>月曜日</option>
-          <option>火曜日</option>
-          <option>水曜日</option>
-          <option>木曜日</option>
-          <option>金曜日</option>
-          <option>土曜日</option>
-          <option>日曜日</option>
-        </select>
-      </label>
+      <fieldset style="border:0;padding:0;margin:0;">
+        <legend style="font-weight:600;margin-bottom:8px;">
+          通常の通塾曜日
+        </legend>
+
+        <div style="display:flex;flex-wrap:wrap;gap:10px 14px;">
+          ${["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"].map(day => `
+            <label style="display:flex;align-items:center;gap:6px;margin:0;">
+              <input
+                class="student-admin-regular"
+                type="checkbox"
+                value="${day}"
+              >
+              ${day.replace("曜日", "")}
+            </label>
+          `).join("")}
+        </div>
+      </fieldset>
 
       <label>
         保護者
         <select id="studentAdminGuardian">
           <option value="">未設定</option>
           ${guardians.map(guardian => `
-            <option value="${escapeHtml(guardian.id)}">
+                      <option value="${escapeHtml(guardian.id)}">
               ${escapeHtml(guardian.display_name || "名称未設定")}
             </option>
           `).join("")}
@@ -1927,7 +1968,7 @@ async function renderStudentsAdmin() {
     $("#studentAdminName").value = "";
     $("#studentAdminClassroom").value = "";
     $("#studentAdminGrade").value = "";
-    $("#studentAdminRegular").value = "";
+    setStudentWeekdayChecks("");
     $("#studentAdminGuardian").value = "";
     $("#studentAdminActive").value = "true";
     $("#studentAdminName").focus();
@@ -1976,8 +2017,9 @@ async function renderStudentsAdmin() {
           $("#studentAdminGrade").value =
             student.grade || "";
 
-          $("#studentAdminRegular").value =
-            student.regular || "";
+          setStudentWeekdayChecks(
+            student.regular || ""
+          );
 
           $("#studentAdminGuardian").value =
             student.guardian_id || "";
@@ -2049,8 +2091,8 @@ async function saveStudentAdminForm(event) {
           .value
           .trim(),
       regular:
-        $("#studentAdminRegular")
-          .value,
+        selectedStudentWeekdays()
+          .join("・"),
       active:
         $("#studentAdminActive")
           .value === "true",
@@ -2807,7 +2849,7 @@ async function exportRowsCsv(
       "CSV share failed:",
       error
     );
-  }
+       }
 
   const url =
     URL.createObjectURL(
@@ -3336,7 +3378,9 @@ $("#absenceForm")
               student.id,
 
             regular_weekday:
-              $("#regularWeekday").value,
+              student.regular ||
+              $("#regularWeekday")?.value ||
+              null,
 
             absence_date:
               $("#absenceDate").value,
@@ -3395,7 +3439,16 @@ $("#absenceForm")
               </span>
 
               <b>
-                ${escapeHtml($("#regularWeekday").value)}
+                ${escapeHtml(
+                  [...new Set(
+                    chosen.map(
+                      student =>
+                        student.regular ||
+                        $("#regularWeekday")?.value ||
+                        "未設定"
+                    )
+                  )].join("／")
+                )}
               </b>
             </div>
 
