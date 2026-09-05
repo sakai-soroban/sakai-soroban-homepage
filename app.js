@@ -68,13 +68,22 @@ function isLiffConfigured() {
 }
 
 function ensureSecureTransport() {
-  const local = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
+  const local = [
+    "localhost",
+    "127.0.0.1",
+    "::1"
+  ].includes(location.hostname);
 
-  if (!local && location.protocol !== "https:") {
+  if (
+    !local &&
+    location.protocol !== "https:"
+  ) {
     document.body.innerHTML =
       '<main class="security-block"><h1>安全な接続が必要です</h1><p>このサービスはHTTPS接続でのみ利用できます。</p></main>';
 
-    throw new Error("HTTPS is required");
+    throw new Error(
+      "HTTPS is required"
+    );
   }
 }
 
@@ -89,28 +98,43 @@ function apiHeaders(
 ) {
   return {
     apikey: config.supabaseAnonKey,
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+
+    ...(token
+      ? {
+          Authorization:
+            `Bearer ${token}`
+        }
+      : {}),
+
     ...extra
   };
 }
 
-async function api(path, options = {}) {
-  if (!isSupabaseConfigured()) {
+async function api(
+  path,
+  options = {}
+) {
+  if (
+    !isSupabaseConfigured()
+  ) {
     throw new Error(
       "Supabase接続が未設定です。管理者へご連絡ください。"
     );
   }
 
-  const response = await fetch(
-    `${config.supabaseUrl}${path}`,
-    {
-      ...options,
-      headers: apiHeaders(
-        options.token,
-        options.headers
-      )
-    }
-  );
+  const response =
+    await fetch(
+      `${config.supabaseUrl}${path}`,
+      {
+        ...options,
+
+        headers:
+          apiHeaders(
+            options.token,
+            options.headers
+          )
+      }
+    );
 
   if (
     response.status === 401 &&
@@ -119,17 +143,27 @@ async function api(path, options = {}) {
   ) {
     await refreshSession();
 
-    return api(path, {
-      ...options,
-      token: authSession.access_token,
-      noRefresh: true
-    });
+    return api(
+      path,
+      {
+        ...options,
+
+        token:
+          authSession.access_token,
+
+        noRefresh:
+          true
+      }
+    );
   }
 
-  if (!response.ok) {
-    const body = await response
-      .json()
-      .catch(() => ({}));
+  if (
+    !response.ok
+  ) {
+    const body =
+      await response
+        .json()
+        .catch(() => ({}));
 
     throw new Error(
       body.message ||
@@ -139,7 +173,9 @@ async function api(path, options = {}) {
     );
   }
 
-  if (response.status === 204) {
+  if (
+    response.status === 204
+  ) {
     return null;
   }
 
@@ -153,16 +189,28 @@ async function api(path, options = {}) {
 
 function saveSession(session) {
   authSession = {
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
+    access_token:
+      session.access_token,
+
+    refresh_token:
+      session.refresh_token,
+
     expires_at:
       session.expires_at ||
-      Math.floor(Date.now() / 1000) +
-        Number(session.expires_in || 3600),
+      Math.floor(
+        Date.now() / 1000
+      ) +
+      Number(
+        session.expires_in ||
+        3600
+      ),
 
     user: {
-      id: session.user.id,
-      email: session.user.email
+      id:
+        session.user.id,
+
+      email:
+        session.user.email
     }
   };
 }
@@ -171,58 +219,95 @@ function clearSession() {
   authSession = null;
   currentProfile = null;
   parentChildren = [];
-  selectedChildIds = new Set();
-  pendingLineIdToken = null;
+  selectedChildIds =
+    new Set();
+  pendingLineIdToken =
+    null;
 
-  $("#studentChoices")?.replaceChildren();
+  $("#studentChoices")
+    ?.replaceChildren();
 
-  if ($("#parentLogoutButton")) {
-    $("#parentLogoutButton").hidden = true;
+  if (
+    $("#parentLogoutButton")
+  ) {
+    $("#parentLogoutButton")
+      .hidden = true;
   }
 }
 
-async function signIn(email, password) {
-  const session = await api(
-    "/auth/v1/token?grant_type=password",
-    {
-      method: "POST",
-      token: null,
-      noRefresh: true,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email,
-        password
-      })
-    }
-  );
+async function signIn(
+  email,
+  password
+) {
+  const session =
+    await api(
+      "/auth/v1/token?grant_type=password",
+      {
+        method:
+          "POST",
 
-  saveSession(session);
+        token:
+          null,
+
+        noRefresh:
+          true,
+
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+            email,
+            password
+          })
+      }
+    );
+
+  saveSession(
+    session
+  );
 }
 
 async function refreshSession() {
-  if (!authSession?.refresh_token) {
-    throw new Error("再ログインが必要です");
+  if (
+    !authSession?.refresh_token
+  ) {
+    throw new Error(
+      "再ログインが必要です"
+    );
   }
 
-  const session = await api(
-    "/auth/v1/token?grant_type=refresh_token",
-    {
-      method: "POST",
-      token: null,
-      noRefresh: true,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        refresh_token:
-          authSession.refresh_token
-      })
-    }
-  );
+  const session =
+    await api(
+      "/auth/v1/token?grant_type=refresh_token",
+      {
+        method:
+          "POST",
 
-  saveSession(session);
+        token:
+          null,
+
+        noRefresh:
+          true,
+
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+            refresh_token:
+              authSession.refresh_token
+          })
+      }
+    );
+
+  saveSession(
+    session
+  );
 }
 
 async function signOut() {
@@ -233,15 +318,20 @@ async function signOut() {
     await api(
       "/auth/v1/logout",
       {
-        method: "POST",
-        noRefresh: true
+        method:
+          "POST",
+
+        noRefresh:
+          true
       }
     ).catch(() => {});
   }
 
   clearSession();
 
-  if (window.liff?.isLoggedIn()) {
+  if (
+    window.liff?.isLoggedIn()
+  ) {
     window.liff.logout();
   }
 }
@@ -252,23 +342,28 @@ async function signOut() {
 ========================= */
 
 async function loadOwnProfile() {
-  const rows = await api(
-    `/rest/v1/profiles?id=eq.${encodeURIComponent(authSession.user.id)}&select=role,display_name`
-  );
+  const rows =
+    await api(
+      `/rest/v1/profiles?id=eq.${encodeURIComponent(authSession.user.id)}&select=role,display_name`
+    );
 
-  if (rows.length !== 1) {
+  if (
+    rows.length !== 1
+  ) {
     throw new Error(
       "利用権限が登録されていません"
     );
   }
 
-  currentProfile = rows[0];
+  currentProfile =
+    rows[0];
 }
 
 async function loadOwnChildren() {
-  parentChildren = await api(
-    "/rest/v1/students?select=id,name&order=id.asc"
-  );
+  parentChildren =
+    await api(
+      "/rest/v1/students?select=id,name&order=id.asc"
+    );
 }
 
 
@@ -276,10 +371,14 @@ async function loadOwnChildren() {
    欠席・振替送信
 ========================= */
 
-async function submitAbsences(items) {
+async function submitAbsences(
+  items
+) {
   if (
     !config.absenceSubmitEndpoint ||
-    config.absenceSubmitEndpoint.includes("YOUR_")
+    config.absenceSubmitEndpoint.includes(
+      "YOUR_"
+    )
   ) {
     throw new Error(
       "欠席・振替受付APIが未設定です"
@@ -291,32 +390,42 @@ async function submitAbsences(items) {
       ? window.liff.getIDToken()
       : pendingLineIdToken;
 
-  if (!idToken) {
+  if (
+    !idToken
+  ) {
     throw new Error(
       "LINE本人確認の有効期限が切れました。もう一度ログインしてください"
     );
   }
 
-  const response = await fetch(
-    config.absenceSubmitEndpoint,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/json"
-      },
-      body: JSON.stringify({
-        idToken,
-        items
-      })
-    }
-  );
+  const response =
+    await fetch(
+      config.absenceSubmitEndpoint,
+      {
+        method:
+          "POST",
 
-  const payload = await response
-    .json()
-    .catch(() => ({}));
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
 
-  if (!response.ok) {
+        body:
+          JSON.stringify({
+            idToken,
+            items
+          })
+      }
+    );
+
+  const payload =
+    await response
+      .json()
+      .catch(() => ({}));
+
+  if (
+    !response.ok
+  ) {
     throw new Error(
       payload.message ||
       "申請処理に失敗しました"
@@ -336,31 +445,43 @@ function showView(id) {
     id === "parentView" &&
     (
       !authSession ||
-      currentProfile?.role !== "guardian"
+      currentProfile?.role !==
+        "guardian"
     )
   ) {
-    id = "parentLoginView";
+    id =
+      "parentLoginView";
   }
 
   if (
     id === "teacherView" &&
-    !["teacher", "admin"].includes(
+    ![
+      "teacher",
+      "admin"
+    ].includes(
       currentProfile?.role
     )
   ) {
-    id = "loginView";
+    id =
+      "loginView";
   }
 
-  $$(".view").forEach(view => {
-    view.classList.toggle(
-      "active",
-      view.id === id
+  $$(".view")
+    .forEach(
+      view => {
+        view.classList.toggle(
+          "active",
+          view.id === id
+        );
+      }
     );
-  });
 
   scrollTo({
-    top: 0,
-    behavior: "smooth"
+    top:
+      0,
+
+    behavior:
+      "smooth"
   });
 }
 
@@ -369,18 +490,23 @@ function setConnectionNotice() {
     isSupabaseConfigured() &&
     isLiffConfigured();
 
-  const message = configured
-    ? "🔒 LINE認証・Supabase RLSで保護されています"
-    : "⚠ LIFFまたはSupabaseの本番設定が未完了です";
+  const message =
+    configured
+      ? "🔒 LINE認証・Supabase RLSで保護されています"
+      : "⚠ LIFFまたはSupabaseの本番設定が未完了です";
 
-  $$(".connection-notice").forEach(node => {
-    node.textContent = message;
+  $$(".connection-notice")
+    .forEach(
+      node => {
+        node.textContent =
+          message;
 
-    node.classList.toggle(
-      "warning",
-      !configured
+        node.classList.toggle(
+          "warning",
+          !configured
+        );
+      }
     );
-  });
 }
 
 
@@ -389,40 +515,56 @@ function setConnectionNotice() {
 ========================= */
 
 function renderStudents() {
-  $("#studentChoiceHelp").textContent =
-    parentChildren.length > 1
-      ? "兄弟は1人ずつ入力して追加できます"
-      : "LINE連携済みのお子さまと照合します";
+  $("#studentChoiceHelp")
+    .textContent =
+      parentChildren.length > 1
+        ? "兄弟は1人ずつ入力して追加できます"
+        : "LINE連携済みのお子さまと照合します";
 
   const selected =
-    parentChildren.filter(student =>
-      selectedChildIds.has(student.id)
+    parentChildren.filter(
+      student =>
+        selectedChildIds.has(
+          student.id
+        )
     );
 
-  $("#studentChoices").innerHTML =
-    selected.length
-      ? selected.map(student => `
-          <div class="verified-student">
-            <span>✓</span>
-            <b>${escapeHtml(student.name)}</b>
-            <button
-              type="button"
-              data-remove-student="${student.id}"
-            >
-              取消
-            </button>
-          </div>
-        `).join("")
-      : '<div class="verified-empty">確認済みの生徒はまだありません</div>';
+  $("#studentChoices")
+    .innerHTML =
+      selected.length
+        ? selected
+            .map(
+              student => `
+                <div class="verified-student">
+                  <span>✓</span>
 
-  $$("[data-remove-student]").forEach(
+                  <b>
+                    ${escapeHtml(student.name)}
+                  </b>
+
+                  <button
+                    type="button"
+                    data-remove-student="${student.id}"
+                  >
+                    取消
+                  </button>
+                </div>
+              `
+            )
+            .join("")
+        : '<div class="verified-empty">確認済みの生徒はまだありません</div>';
+
+  $$(
+    "[data-remove-student]"
+  ).forEach(
     button =>
       button.addEventListener(
         "click",
         () => {
           selectedChildIds.delete(
             Number(
-              button.dataset.removeStudent
+              button.dataset
+                .removeStudent
             )
           );
 
@@ -431,15 +573,27 @@ function renderStudents() {
       )
   );
 
-  $("#parentFamilyLabel").textContent =
-    `${currentProfile.display_name || "保護者さま"}専用`;
+  $("#parentFamilyLabel")
+    .textContent =
+      `${currentProfile.display_name || "保護者さま"}専用`;
 }
 
-function normalizeStudentName(value) {
-  return String(value || "")
-    .normalize("NFKC")
-    .replace(/[\s　]+/g, "")
-    .toLocaleLowerCase("ja-JP");
+function normalizeStudentName(
+  value
+) {
+  return String(
+    value || ""
+  )
+    .normalize(
+      "NFKC"
+    )
+    .replace(
+      /[\s　]+/g,
+      ""
+    )
+    .toLocaleLowerCase(
+      "ja-JP"
+    );
 }
 
 function verifyStudentName() {
@@ -451,37 +605,55 @@ function verifyStudentName() {
       input.value
     );
 
-  $("#studentMatchError").textContent = "";
+  $("#studentMatchError")
+    .textContent =
+      "";
 
-  if (!normalized) {
-    $("#studentMatchError").textContent =
-      "生徒名を入力してください";
+  if (
+    !normalized
+  ) {
+    $("#studentMatchError")
+      .textContent =
+        "生徒名を入力してください";
+
     return;
   }
 
   const match =
-    parentChildren.find(student =>
-      normalizeStudentName(
-        student.name
-      ) === normalized
+    parentChildren.find(
+      student =>
+        normalizeStudentName(
+          student.name
+        ) ===
+        normalized
     );
 
-  if (!match) {
-    $("#studentMatchError").textContent =
-      "登録されているお子さまと一致しません";
+  if (
+    !match
+  ) {
+    $("#studentMatchError")
+      .textContent =
+        "登録されているお子さまと一致しません";
+
     return;
   }
 
-  selectedChildIds.add(match.id);
+  selectedChildIds.add(
+    match.id
+  );
 
-  input.value = "";
+  input.value =
+    "";
 
   renderStudents();
 }
 
 function selectedStudents() {
-  return parentChildren.filter(student =>
-    selectedChildIds.has(student.id)
+  return parentChildren.filter(
+    student =>
+      selectedChildIds.has(
+        student.id
+      )
   );
 }
 
@@ -501,54 +673,70 @@ async function exchangeLineIdentity(
 
   if (
     !endpoint ||
-    endpoint.includes("YOUR_")
+    endpoint.includes(
+      "YOUR_"
+    )
   ) {
     throw new Error(
       "LINE認証APIが未設定です"
     );
   }
 
-  const response = await fetch(
-    endpoint,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/json"
-      },
-      body: JSON.stringify({
-        idToken,
-        linkCode
-      })
-    }
-  );
+  const response =
+    await fetch(
+      endpoint,
+      {
+        method:
+          "POST",
 
-  const payload = await response
-    .json()
-    .catch(() => ({}));
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+            idToken,
+            linkCode
+          })
+      }
+    );
+
+  const payload =
+    await response
+      .json()
+      .catch(() => ({}));
 
   if (
-    response.status === 409 &&
-    payload.code === "LINK_REQUIRED"
+    response.status ===
+      409 &&
+    payload.code ===
+      "LINK_REQUIRED"
   ) {
     return {
-      linkRequired: true
+      linkRequired:
+        true
     };
   }
 
-  if (!response.ok) {
+  if (
+    !response.ok
+  ) {
     throw new Error(
       payload.message ||
       "LINE本人確認に失敗しました"
     );
   }
 
-  saveSession(payload.session);
+  saveSession(
+    payload.session
+  );
 
   await loadOwnProfile();
 
   if (
-    currentProfile.role !== "guardian"
+    currentProfile.role !==
+    "guardian"
   ) {
     throw new Error(
       "保護者アカウントではありません"
@@ -564,13 +752,17 @@ async function exchangeLineIdentity(
 
   await loadMakeupSlots();
 
-  $("#parentLogoutButton").hidden =
-    false;
+  $("#parentLogoutButton")
+    .hidden =
+      false;
 
-  showView("parentView");
+  showView(
+    "parentView"
+  );
 
   return {
-    linkRequired: false
+    linkRequired:
+      false
   };
 }
 
@@ -585,31 +777,44 @@ async function initializeLiff({
   }
 
   await window.liff.init({
-    liffId: config.liffId,
-    withLoginOnExternalBrowser: false
+    liffId:
+      config.liffId,
+
+    withLoginOnExternalBrowser:
+      false
   });
 
-  if (!window.liff.isLoggedIn()) {
+  if (
+    !window.liff.isLoggedIn()
+  ) {
     return false;
   }
 
   pendingLineIdToken =
     window.liff.getIDToken();
 
-  if (!pendingLineIdToken) {
+  if (
+    !pendingLineIdToken
+  ) {
     throw new Error(
       "LINEの本人確認情報を取得できませんでした"
     );
   }
 
-  if (autoExchange) {
+  if (
+    autoExchange
+  ) {
     const result =
       await exchangeLineIdentity(
         pendingLineIdToken
       );
 
-    if (result.linkRequired) {
-      showView("linkView");
+    if (
+      result.linkRequired
+    ) {
+      showView(
+        "linkView"
+      );
     }
   }
 
@@ -643,16 +848,22 @@ function renderCalendar() {
     ).getDate();
 
   const today =
-    localIso(new Date());
+    localIso(
+      new Date()
+    );
 
   const room =
-    $("#makeupClassroom").value;
+    $("#makeupClassroom")
+      .value;
 
-  $("#calendarTitle").textContent =
-    `${year}年 ${month + 1}月`;
+  $("#calendarTitle")
+    .textContent =
+      `${year}年 ${month + 1}月`;
 
   let html =
-    Array(firstDay)
+    Array(
+      firstDay
+    )
       .fill(
         '<button class="day blank" type="button" disabled></button>'
       )
@@ -678,13 +889,16 @@ function renderCalendar() {
     const daySlots =
       makeupSlots.filter(
         slot =>
-          slot.lesson_date === value &&
-          slot.classroom === room
+          slot.lesson_date ===
+            value &&
+          slot.classroom ===
+            room
       );
 
     const hasSpace =
       daySlots.some(
-        slot => !slot.is_full
+        slot =>
+          !slot.is_full
       );
 
     const full =
@@ -692,7 +906,8 @@ function renderCalendar() {
       !hasSpace;
 
     const disabled =
-      past || !hasSpace;
+      past ||
+      !hasSpace;
 
     html += `
       <button
@@ -707,59 +922,77 @@ function renderCalendar() {
         aria-label="${day}日${full ? " 満員" : hasSpace ? " 空きあり" : " 授業なし"}"
       >
         ${day}
-        ${full
-          ? "<small>満</small>"
-          : hasSpace
-            ? "<small>空</small>"
-            : ""
+
+        ${
+          full
+            ? "<small>満</small>"
+            : hasSpace
+              ? "<small>空</small>"
+              : ""
         }
       </button>
     `;
   }
 
-  $("#calendarDays").innerHTML =
-    html;
+  $("#calendarDays")
+    .innerHTML =
+      html;
 
   $$("#calendarDays [data-date]")
-    .forEach(button =>
-      button.addEventListener(
-        "click",
-        () => {
-          selectedMakeupDate =
-            button.dataset.date;
+    .forEach(
+      button =>
+        button.addEventListener(
+          "click",
+          () => {
+            selectedMakeupDate =
+              button.dataset.date;
 
-          $("#makeupDate").value =
-            selectedMakeupDate;
+            $("#makeupDate")
+              .value =
+                selectedMakeupDate;
 
-          renderCalendar();
-          renderMakeupSlotOptions();
-        }
-      )
+            renderCalendar();
+
+            renderMakeupSlotOptions();
+          }
+        )
     );
 
   renderMakeupSlotOptions();
 }
 
 async function loadMakeupSlots() {
-  const from = dateIso();
+  const from =
+    dateIso();
 
-  const to = dateIso(93);
+  const to =
+    dateIso(93);
 
-  makeupSlots = await api(
-    "/rest/v1/rpc/available_makeup_slots",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/json"
-      },
-      body: JSON.stringify({
-        p_from: from,
-        p_to: to,
-        p_classroom: null
-      })
-    }
-  );
+  makeupSlots =
+    await api(
+      "/rest/v1/rpc/available_makeup_slots",
+      {
+        method:
+          "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+            p_from:
+              from,
+
+            p_to:
+              to,
+
+            p_classroom:
+              null
+          })
+      }
+    );
 
   chooseFirstAvailableSlot();
 
@@ -768,14 +1001,17 @@ async function loadMakeupSlots() {
 
 function chooseFirstAvailableSlot() {
   const room =
-    $("#makeupClassroom").value;
+    $("#makeupClassroom")
+      .value;
 
   const available =
     makeupSlots.find(
       slot =>
-        slot.classroom === room &&
+        slot.classroom ===
+          room &&
         !slot.is_full &&
-        slot.lesson_date >= dateIso()
+        slot.lesson_date >=
+          dateIso()
     );
 
   const currentDateHasSpace =
@@ -783,7 +1019,8 @@ function chooseFirstAvailableSlot() {
       slot =>
         slot.lesson_date ===
           selectedMakeupDate &&
-        slot.classroom === room &&
+        slot.classroom ===
+          room &&
         !slot.is_full
     );
 
@@ -794,8 +1031,9 @@ function chooseFirstAvailableSlot() {
     selectedMakeupDate =
       available.lesson_date;
 
-    $("#makeupDate").value =
-      selectedMakeupDate;
+    $("#makeupDate")
+      .value =
+        selectedMakeupDate;
 
     calendarCursor =
       new Date(
@@ -806,47 +1044,60 @@ function chooseFirstAvailableSlot() {
 
 function renderMakeupSlotOptions() {
   const room =
-    $("#makeupClassroom").value;
+    $("#makeupClassroom")
+      .value;
 
   const slots =
     makeupSlots.filter(
       slot =>
         slot.lesson_date ===
           selectedMakeupDate &&
-        slot.classroom === room
+        slot.classroom ===
+          room
     );
 
-  $("#makeupSlot").innerHTML =
-    slots.length
-      ? slots.map(slot => `
-          <option
-            value="${slot.id}"
-            ${slot.is_full ? "disabled" : ""}
-          >
-            ${escapeHtml(formatTime(slot.start_time))}〜
-            予約${slot.reserved_count}/${slot.capacity}名
-            ${slot.is_full
-              ? "満員"
-              : `残り${slot.remaining_count}名`
-            }
-          </option>
-        `).join("")
-      : '<option value="">この日の授業枠はありません</option>';
+  $("#makeupSlot")
+    .innerHTML =
+      slots.length
+        ? slots
+            .map(
+              slot => `
+                <option
+                  value="${slot.id}"
+                  ${slot.is_full ? "disabled" : ""}
+                >
+                  ${escapeHtml(formatTime(slot.start_time))}〜
+                  予約${slot.reserved_count}/${slot.capacity}名
+                  ${
+                    slot.is_full
+                      ? "満員"
+                      : `残り${slot.remaining_count}名`
+                  }
+                </option>
+              `
+            )
+            .join("")
+        : '<option value="">この日の授業枠はありません</option>';
 
   const selectable =
     slots.find(
-      slot => !slot.is_full
+      slot =>
+        !slot.is_full
     );
 
-  $("#makeupSlot").value =
-    selectable
-      ? String(selectable.id)
-      : "";
+  $("#makeupSlot")
+    .value =
+      selectable
+        ? String(
+            selectable.id
+          )
+        : "";
 
-  $("#slotAvailability").textContent =
-    selectable
-      ? `${formatDate(selectedMakeupDate)} ${formatTime(selectable.start_time)}〜　残り${selectable.remaining_count}名`
-      : "選択できる空き枠がありません";
+  $("#slotAvailability")
+    .textContent =
+      selectable
+        ? `${formatDate(selectedMakeupDate)} ${formatTime(selectable.start_time)}〜　残り${selectable.remaining_count}名`
+        : "選択できる空き枠がありません";
 
   $("#slotAvailability")
     .classList.toggle(
@@ -882,24 +1133,30 @@ function buildRecordQuery(
   );
 
   const room =
-    $("#classroomFilter").value;
+    $("#classroomFilter")
+      .value;
 
   const date =
-    $("#dateFilter").value;
+    $("#dateFilter")
+      .value;
 
   const search =
     $("#studentSearch")
       .value
       .trim();
 
-  if (tab === "today") {
+  if (
+    tab === "today"
+  ) {
     params.set(
       "absence_date",
       `eq.${dateIso()}`
     );
   }
 
-  if (tab === "todayMakeups") {
+  if (
+    tab === "todayMakeups"
+  ) {
     params.set(
       "makeup_date",
       `eq.${dateIso()}`
@@ -911,28 +1168,36 @@ function buildRecordQuery(
     );
   }
 
-  if (tab === "pending") {
+  if (
+    tab === "pending"
+  ) {
     params.set(
       "status",
       "eq.pending"
     );
   }
 
-  if (room !== "all") {
+  if (
+    room !== "all"
+  ) {
     params.set(
       "students.classroom",
       `eq.${room}`
     );
   }
 
-  if (search) {
+  if (
+    search
+  ) {
     params.set(
       "students.name",
       `ilike.*${search.replaceAll("*", "")}*`
     );
   }
 
-  if (date) {
+  if (
+    date
+  ) {
     params.set(
       "or",
       `(absence_date.eq.${date},makeup_date.eq.${date})`
@@ -946,7 +1211,9 @@ async function loadTeacherRecords(
   tab = currentTab
 ) {
   return api(
-    buildRecordQuery(tab)
+    buildRecordQuery(
+      tab
+    )
   );
 }
 
@@ -954,28 +1221,32 @@ async function loadDashboardCounts() {
   return api(
     "/rest/v1/rpc/teacher_dashboard_counts",
     {
-      method: "POST",
+      method:
+        "POST",
+
       headers: {
         "Content-Type":
           "application/json"
       },
-      body: JSON.stringify({
-        p_classroom:
-          $("#classroomFilter").value ===
-          "all"
-            ? null
-            : $("#classroomFilter").value,
 
-        p_date:
-          $("#dateFilter").value ||
-          null,
+      body:
+        JSON.stringify({
+          p_classroom:
+            $("#classroomFilter").value ===
+            "all"
+              ? null
+              : $("#classroomFilter").value,
 
-        p_search:
-          $("#studentSearch")
-            .value
-            .trim() ||
-          null
-      })
+          p_date:
+            $("#dateFilter").value ||
+            null,
+
+          p_search:
+            $("#studentSearch")
+              .value
+              .trim() ||
+            null
+        })
     }
   );
 }
@@ -988,7 +1259,10 @@ async function loadAuditLogs() {
 
 async function renderAdmin() {
   if (
-    !["teacher", "admin"].includes(
+    ![
+      "teacher",
+      "admin"
+    ].includes(
       currentProfile?.role
     )
   ) {
@@ -997,11 +1271,15 @@ async function renderAdmin() {
     );
   }
 
-  $("#adminContent").innerHTML =
-    '<div class="empty">安全に読み込んでいます…</div>';
+  $("#adminContent")
+    .innerHTML =
+      '<div class="empty">安全に読み込んでいます…</div>';
 
   try {
-    if (currentTab === "audit") {
+    if (
+      currentTab ===
+      "audit"
+    ) {
       renderAuditList(
         await loadAuditLogs()
       );
@@ -1009,7 +1287,10 @@ async function renderAdmin() {
       return;
     }
 
-    if (currentTab === "slots") {
+    if (
+      currentTab ===
+      "slots"
+    ) {
       await renderClassSlots();
 
       return;
@@ -1018,35 +1299,57 @@ async function renderAdmin() {
     const [
       records,
       counts
-    ] = await Promise.all([
-      loadTeacherRecords(),
-      loadDashboardCounts()
-    ]);
+    ] =
+      await Promise.all([
+        loadTeacherRecords(),
+        loadDashboardCounts()
+      ]);
 
     teacherCurrentRows =
       records;
 
-    $("#stats").innerHTML = `
-      <div class="stat green">
-        <span>今日の欠席</span>
-        <b>${Number(counts.today_absences || 0)}名</b>
-      </div>
+    $("#stats")
+      .innerHTML = `
+        <div class="stat green">
+          <span>
+            今日の欠席
+          </span>
 
-      <div class="stat green">
-        <span>今日の振替</span>
-        <b>${Number(counts.today_makeups || 0)}名</b>
-      </div>
+          <b>
+            ${Number(counts.today_absences || 0)}名
+          </b>
+        </div>
 
-      <div class="stat orange">
-        <span>未振替</span>
-        <b>${Number(counts.pending_makeups || 0)}名</b>
-      </div>
+        <div class="stat green">
+          <span>
+            今日の振替
+          </span>
 
-      <div class="stat red">
-        <span>表示中</span>
-        <b>${records.length}件</b>
-      </div>
-    `;
+          <b>
+            ${Number(counts.today_makeups || 0)}名
+          </b>
+        </div>
+
+        <div class="stat orange">
+          <span>
+            未振替
+          </span>
+
+          <b>
+            ${Number(counts.pending_makeups || 0)}名
+          </b>
+        </div>
+
+        <div class="stat red">
+          <span>
+            表示中
+          </span>
+
+          <b>
+            ${records.length}件
+          </b>
+        </div>
+      `;
 
     renderRecordList(
       {
@@ -1061,13 +1364,18 @@ async function renderAdmin() {
 
         all:
           "条件に一致する連絡"
-      }[currentTab],
+      }[
+        currentTab
+      ],
 
       records
     );
-  } catch (error) {
-    $("#adminContent").innerHTML =
-      `<div class="empty">${escapeHtml(error.message)}</div>`;
+  } catch (
+    error
+  ) {
+    $("#adminContent")
+      .innerHTML =
+        `<div class="empty">${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -1075,92 +1383,131 @@ function renderRecordList(
   title,
   rows
 ) {
-  $("#adminContent").innerHTML = `
-    <div class="list-title">
-      <h2>${escapeHtml(title)}</h2>
+  $("#adminContent")
+    .innerHTML = `
+      <div class="list-title">
+        <h2>
+          ${escapeHtml(title)}
+        </h2>
 
-      <div class="list-actions">
-        <button
-          class="csv-button"
-          id="exportCurrentCsv"
-          type="button"
-        >
-          CSV出力
-        </button>
+        <div class="list-actions">
+          <button
+            class="csv-button"
+            id="exportCurrentCsv"
+            type="button"
+          >
+            CSV出力
+          </button>
 
-        <span class="badge">
-          ${rows.length}件
-        </span>
+          <span class="badge">
+            ${rows.length}件
+          </span>
+        </div>
       </div>
-    </div>
 
-    ${
-      rows.length
-        ? rows.map(row => {
-            const student =
-              row.students || {};
+      ${
+        rows.length
+          ? rows
+              .map(
+                row => {
+                  const student =
+                    row.students ||
+                    {};
 
-            const status =
-              row.status === "reserved"
-                ? `<span class="tag green">振替 ${formatDate(row.makeup_date)} ${escapeHtml(formatTime(row.makeup_slot))}〜</span>`
-                : row.status === "pending"
-                  ? '<span class="tag orange">振替日未定</span>'
-                  : '<span class="tag">振替なし</span>';
+                  const status =
+                    row.status ===
+                    "reserved"
+                      ? `<span class="tag green">振替 ${formatDate(row.makeup_date)} ${escapeHtml(formatTime(row.makeup_slot))}〜</span>`
 
-            return `
-              <div class="record">
-                <div class="person">
-                  <span class="avatar-sm">
-                    ${escapeHtml(student.name?.slice(0, 1))}
-                  </span>
+                      : row.status ===
+                        "pending"
+                        ? '<span class="tag orange">振替日未定</span>'
 
-                  <div>
-                    <b>${escapeHtml(student.name)}</b>
+                        : '<span class="tag">振替なし</span>';
 
-                    <div class="sub">
-                      ${escapeHtml(student.classroom)}
-                      ／受付
-                      ${escapeHtml(row.receipt_number || "-")}
+                  return `
+                    <div class="record">
+                      <div class="person">
+                        <span class="avatar-sm">
+                          ${escapeHtml(student.name?.slice(0, 1))}
+                        </span>
+
+                        <div>
+                          <b>
+                            ${escapeHtml(student.name)}
+                          </b>
+
+                          <div class="sub">
+                            ${escapeHtml(student.classroom)}
+                            ／受付
+                            ${escapeHtml(row.receipt_number || "-")}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span class="tag">
+                          ${formatDate(row.absence_date)}
+                          欠席
+                        </span>
+                      </div>
+
+                      <p>
+                        ${escapeHtml(row.reason)}
+
+                        <br>
+
+                        ${status}
+                      </p>
+
+                      ${
+                        row.status ===
+                        "pending"
+                          ? '<span class="tag orange">空き枠を確認して設定</span>'
+
+                          : '<span class="tag">確認済み</span>'
+                      }
                     </div>
-                  </div>
-                </div>
-
-                <div>
-                  <span class="tag">
-                    ${formatDate(row.absence_date)}
-                    欠席
-                  </span>
-                </div>
-
-                <p>
-                  ${escapeHtml(row.reason)}
-                  <br>
-                  ${status}
-                </p>
-
-                ${
-                  row.status === "pending"
-                    ? '<span class="tag orange">空き枠を確認して設定</span>'
-                    : '<span class="tag">確認済み</span>'
+                  `;
                 }
-              </div>
-            `;
-          }).join("")
-        : '<div class="empty">該当する連絡はありません</div>'
-    }
-  `;
+              )
+              .join("")
+
+          : '<div class="empty">該当する連絡はありません</div>'
+      }
+    `;
 
   $("#exportCurrentCsv")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       async () => {
         await exportRowsCsv(
           rows,
-          csvNameForTab(currentTab)
+          csvNameForTab(
+            currentTab
+          )
         );
       }
     );
 }
+
+
+/* =========================
+   授業枠・定員
+========================= */
+
+/*
+ * ここが今回の修正箇所。
+ *
+ * 存在しない
+ * teacher_class_slot_status
+ * は使用しない。
+ *
+ * 保護者画面ですでに
+ * 正常稼働している
+ * available_makeup_slots
+ * を使用する。
+ */
 
 async function loadClassSlots() {
   const start =
@@ -1168,29 +1515,33 @@ async function loadClassSlots() {
     dateIso();
 
   return api(
-    "/rest/v1/rpc/teacher_class_slot_status",
+    "/rest/v1/rpc/available_makeup_slots",
     {
-      method: "POST",
+      method:
+        "POST",
+
       headers: {
         "Content-Type":
           "application/json"
       },
-      body: JSON.stringify({
-        p_from:
-          start,
 
-        p_to:
-          dateIsoFrom(
+      body:
+        JSON.stringify({
+          p_from:
             start,
-            30
-          ),
 
-        p_classroom:
-          $("#classroomFilter").value ===
-          "all"
-            ? null
-            : $("#classroomFilter").value
-      })
+          p_to:
+            dateIsoFrom(
+              start,
+              30
+            ),
+
+          p_classroom:
+            $("#classroomFilter").value ===
+            "all"
+              ? null
+              : $("#classroomFilter").value
+        })
     }
   );
 }
@@ -1209,18 +1560,23 @@ function dateIsoFrom(
     offset
   );
 
-  return localIso(date);
+  return localIso(
+    date
+  );
 }
 
 async function renderClassSlots() {
-  $("#stats").innerHTML =
-    "";
+  $("#stats")
+    .innerHTML =
+      "";
 
   const rows =
     await loadClassSlots();
 
   const adminForm =
-    currentProfile.role === "admin"
+    currentProfile.role ===
+      "admin"
+
       ? `
         <form
           id="slotForm"
@@ -1241,9 +1597,16 @@ async function renderClassSlots() {
           <label>
             教室
 
-            <select id="slotClassroom">
-              <option>福沼教室</option>
-              <option>穂波教室</option>
+            <select
+              id="slotClassroom"
+            >
+              <option>
+                福沼教室
+              </option>
+
+              <option>
+                穂波教室
+              </option>
             </select>
           </label>
 
@@ -1279,77 +1642,89 @@ async function renderClassSlots() {
           </button>
         </form>
       `
+
       : '<p class="privacy-note compact">定員の変更は管理者だけが行えます。</p>';
 
-  $("#adminContent").innerHTML = `
-    <div class="list-title">
-      <h2>
-        授業枠ごとの予約人数
-      </h2>
+  $("#adminContent")
+    .innerHTML = `
+      <div class="list-title">
+        <h2>
+          授業枠ごとの予約人数
+        </h2>
 
-      <span class="badge">
-        ${rows.length}枠
-      </span>
-    </div>
+        <span class="badge">
+          ${rows.length}枠
+        </span>
+      </div>
 
-    ${adminForm}
+      ${adminForm}
 
-    <div class="slot-list">
-      ${
-        rows.length
-          ? rows.map(row => `
-              <div
-                class="slot-row ${Number(row.remaining_count) === 0 ? "is-full" : ""}"
-              >
-                <div>
-                  <b>
-                    ${formatDate(row.lesson_date)}
-                    ${escapeHtml(formatTime(row.start_time))}〜
-                  </b>
+      <div class="slot-list">
+        ${
+          rows.length
+            ? rows
+                .map(
+                  row => `
+                    <div
+                      class="slot-row ${Number(row.remaining_count) === 0 ? "is-full" : ""}"
+                    >
+                      <div>
+                        <b>
+                          ${formatDate(row.lesson_date)}
+                          ${escapeHtml(formatTime(row.start_time))}〜
+                        </b>
 
-                  <span>
-                    ${escapeHtml(row.classroom)}
-                  </span>
-                </div>
+                        <span>
+                          ${escapeHtml(row.classroom)}
+                        </span>
+                      </div>
 
-                <div class="slot-meter">
-                  <b>
-                    予約
-                    ${row.reserved_count}/${row.capacity}名
-                  </b>
+                      <div class="slot-meter">
+                        <b>
+                          予約
+                          ${row.reserved_count}/${row.capacity}名
+                        </b>
 
-                  <span>
-                    ${
-                      Number(row.remaining_count) === 0
-                        ? "満員"
-                        : `残り${row.remaining_count}名`
-                    }
-                  </span>
-                </div>
+                        <span>
+                          ${
+                            Number(
+                              row.remaining_count
+                            ) === 0
+                              ? "満員"
+                              : `残り${row.remaining_count}名`
+                          }
+                        </span>
+                      </div>
 
-                ${
-                  currentProfile.role === "admin"
-                    ? `
-                      <button
-                        class="small-button"
-                        data-edit-slot="${row.id}"
-                        data-date="${row.lesson_date}"
-                        data-room="${escapeHtml(row.classroom)}"
-                        data-time="${escapeHtml(formatTime(row.start_time))}"
-                        data-capacity="${row.capacity}"
-                        type="button"
-                      >
-                        定員変更
-                      </button>
-                    `
-                    : ""
-                }
-              </div>
-            `).join("")
-          : '<div class="empty">対象期間の授業枠はありません</div>'
-      }
-    </div>
-  `;
+                      ${
+                        currentProfile.role ===
+                        "admin"
+
+                          ? `
+                            <button
+                              class="small-button"
+                              data-edit-slot="${row.id}"
+                              data-date="${row.lesson_date}"
+                              data-room="${escapeHtml(row.classroom)}"
+                              data-time="${escapeHtml(formatTime(row.start_time))}"
+                              data-capacity="${row.capacity}"
+                              type="button"
+                            >
+                              定員変更
+                            </button>
+                          `
+
+                          : ""
+                      }
+                    </div>
+                  `
+                )
+                .join("")
+
+            : '<div class="empty">対象期間の授業枠はありません</div>'
+        }
+      </div>
+    `;
 
   $("#slotForm")
     ?.addEventListener(
@@ -1357,64 +1732,78 @@ async function renderClassSlots() {
       saveSlotForm
     );
 
-  $$("[data-edit-slot]")
-    .forEach(button =>
+  $$(
+    "[data-edit-slot]"
+  ).forEach(
+    button =>
       button.addEventListener(
         "click",
         () => {
-          $("#slotDate").value =
-            button.dataset.date;
+          $("#slotDate")
+            .value =
+              button.dataset.date;
 
-          $("#slotClassroom").value =
-            button.dataset.room;
+          $("#slotClassroom")
+            .value =
+              button.dataset.room;
 
-          $("#slotTime").value =
-            button.dataset.time;
+          $("#slotTime")
+            .value =
+              button.dataset.time;
 
-          $("#slotCapacity").value =
-            button.dataset.capacity;
+          $("#slotCapacity")
+            .value =
+              button.dataset.capacity;
 
-          $("#slotCapacity").focus();
+          $("#slotCapacity")
+            .focus();
         }
       )
-    );
+  );
 }
 
-async function saveSlotForm(event) {
+async function saveSlotForm(
+  event
+) {
   event.preventDefault();
 
   const button =
     event.submitter;
 
-  button.disabled = true;
+  button.disabled =
+    true;
 
   try {
     await api(
       "/rest/v1/rpc/admin_upsert_class_slot",
       {
-        method: "POST",
+        method:
+          "POST",
+
         headers: {
           "Content-Type":
             "application/json"
         },
-        body: JSON.stringify({
-          p_lesson_date:
-            $("#slotDate").value,
 
-          p_classroom:
-            $("#slotClassroom").value,
+        body:
+          JSON.stringify({
+            p_lesson_date:
+              $("#slotDate").value,
 
-          p_start_time:
-            $("#slotTime").value,
+            p_classroom:
+              $("#slotClassroom").value,
 
-          p_capacity:
-            Number(
-              $("#slotCapacity").value
-            ),
+            p_start_time:
+              $("#slotTime").value,
 
-          p_is_active:
-            true
-        })
+            p_capacity:
+              Number(
+                $("#slotCapacity").value
+              ),
+
+            p_is_active:
+              true
+          })
       }
     );
 
@@ -1423,12 +1812,15 @@ async function saveSlotForm(event) {
     );
 
     await renderClassSlots();
-  } catch (error) {
+  } catch (
+    error
+  ) {
     toast(
       error.message
     );
   } finally {
-    button.disabled = false;
+    button.disabled =
+      false;
   }
 }
 
@@ -1437,7 +1829,9 @@ async function saveSlotForm(event) {
    CSV
 ========================= */
 
-function csvNameForTab(tab) {
+function csvNameForTab(
+  tab
+) {
   return (
     {
       today:
@@ -1451,14 +1845,20 @@ function csvNameForTab(tab) {
 
       all:
         "全連絡一覧.csv"
-    }[tab] ||
+    }[
+      tab
+    ] ||
     "一覧.csv"
   );
 }
 
-function csvCell(value) {
+function csvCell(
+  value
+) {
   let text =
-    String(value ?? "")
+    String(
+      value ?? ""
+    )
       .replaceAll(
         "\r",
         " "
@@ -1469,9 +1869,12 @@ function csvCell(value) {
       );
 
   if (
-    /^[=+\-@]/.test(text)
+    /^[=+\-@]/.test(
+      text
+    )
   ) {
-    text = `'${text}`;
+    text =
+      `'${text}`;
   }
 
   return `"${text.replaceAll('"', '""')}"`;
@@ -1482,7 +1885,10 @@ async function exportRowsCsv(
   filename
 ) {
   if (
-    !["teacher", "admin"].includes(
+    ![
+      "teacher",
+      "admin"
+    ].includes(
       currentProfile?.role
     )
   ) {
@@ -1490,8 +1896,11 @@ async function exportRowsCsv(
   }
 
   if (
-    !Array.isArray(rows) ||
-    rows.length === 0
+    !Array.isArray(
+      rows
+    ) ||
+    rows.length ===
+      0
   ) {
     toast(
       "出力するデータがありません"
@@ -1514,38 +1923,69 @@ async function exportRowsCsv(
   ];
 
   const body =
-    rows.map(row => [
-      row.receipt_number || "",
-      row.students?.name || "",
-      row.students?.classroom || "",
-      row.absence_date || "",
-      row.reason || "",
-      row.makeup_date || "",
-      row.makeup_classroom || "",
-      formatTime(row.makeup_slot),
-      row.status || "",
-      row.created_at
-        ? new Date(
-            row.created_at
-          ).toLocaleString(
-            "ja-JP"
-          )
-        : ""
-    ]);
+    rows.map(
+      row => [
+        row.receipt_number ||
+          "",
+
+        row.students?.name ||
+          "",
+
+        row.students?.classroom ||
+          "",
+
+        row.absence_date ||
+          "",
+
+        row.reason ||
+          "",
+
+        row.makeup_date ||
+          "",
+
+        row.makeup_classroom ||
+          "",
+
+        formatTime(
+          row.makeup_slot
+        ),
+
+        row.status ||
+          "",
+
+        row.created_at
+          ? new Date(
+              row.created_at
+            ).toLocaleString(
+              "ja-JP"
+            )
+          : ""
+      ]
+    );
 
   const csv =
     "\uFEFF" +
-    [header, ...body]
-      .map(line =>
-        line
-          .map(csvCell)
-          .join(",")
+    [
+      header,
+      ...body
+    ]
+      .map(
+        line =>
+          line
+            .map(
+              csvCell
+            )
+            .join(",")
       )
-      .join("\r\n");
+      .join(
+        "\r\n"
+      );
 
   const blob =
     new Blob(
-      [csv],
+      [
+        csv
+      ],
       {
         type:
           "text/csv;charset=utf-8"
@@ -1554,7 +1994,9 @@ async function exportRowsCsv(
 
   const file =
     new File(
-      [blob],
+      [
+        blob
+      ],
       filename,
       {
         type:
@@ -1564,29 +2006,35 @@ async function exportRowsCsv(
 
   /*
    * iPhone / LINE内ブラウザ
-   * Web Share APIが使える場合は
-   * 共有シートを開く
+   * Web Share API対応の場合
    */
+
   try {
     if (
       navigator.share &&
       navigator.canShare &&
       navigator.canShare({
-        files: [file]
+        files:
+          [
+            file
+          ]
       })
     ) {
       await navigator.share({
-        files: [file],
-        title: filename
+        files:
+          [
+            file
+          ],
+
+        title:
+          filename
       });
 
       return;
     }
-  } catch (error) {
-    /*
-     * ユーザーが共有画面を
-     * 閉じただけの場合は終了
-     */
+  } catch (
+    error
+  ) {
     if (
       error?.name ===
       "AbortError"
@@ -1601,9 +2049,9 @@ async function exportRowsCsv(
   }
 
   /*
-   * PC・共有非対応ブラウザでは
-   * 通常のダウンロード
+   * PC・共有非対応ブラウザ
    */
+
   const url =
     URL.createObjectURL(
       blob
@@ -1655,7 +2103,9 @@ async function exportNamedCsv(
       rows,
       filename
     );
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "CSV export failed:",
       error
@@ -1673,50 +2123,62 @@ async function exportNamedCsv(
    監査ログ
 ========================= */
 
-function renderAuditList(rows) {
-  $("#stats").innerHTML =
-    "";
+function renderAuditList(
+  rows
+) {
+  $("#stats")
+    .innerHTML =
+      "";
 
-  $("#adminContent").innerHTML = `
-    <div class="list-title">
-      <h2>監査ログ</h2>
+  $("#adminContent")
+    .innerHTML = `
+      <div class="list-title">
+        <h2>
+          監査ログ
+        </h2>
 
-      <span class="badge">
-        ${rows.length}件
-      </span>
-    </div>
+        <span class="badge">
+          ${rows.length}件
+        </span>
+      </div>
 
-    ${
-      rows.length
-        ? rows.map(row => `
-            <div class="audit-row">
-              <b>
-                ${escapeHtml(row.action)}
-              </b>
+      ${
+        rows.length
+          ? rows
+              .map(
+                row => `
+                  <div class="audit-row">
+                    <b>
+                      ${escapeHtml(row.action)}
+                    </b>
 
-              <span>
-                ${escapeHtml(row.table_name)}
-                ／生徒ID
-                ${escapeHtml(row.student_id || "-")}
-              </span>
+                    <span>
+                      ${escapeHtml(row.table_name)}
+                      ／生徒ID
+                      ${escapeHtml(row.student_id || "-")}
+                    </span>
 
-              <span>
-                ${escapeHtml(row.actor_role)}
-                ／
-                ${new Date(row.changed_at).toLocaleString("ja-JP")}
+                    <span>
+                      ${escapeHtml(row.actor_role)}
+                      ／
+                      ${new Date(row.changed_at).toLocaleString("ja-JP")}
 
-                <br>
+                      <br>
 
-                IP
-                ${escapeHtml(row.ip_address || "-")}
-                ／Request
-                ${escapeHtml(row.request_id || "-")}
-              </span>
-            </div>
-          `).join("")
-        : '<div class="empty">監査ログはありません</div>'
-    }
-  `;
+                      IP
+                      ${escapeHtml(row.ip_address || "-")}
+
+                      ／Request
+                      ${escapeHtml(row.request_id || "-")}
+                    </span>
+                  </div>
+                `
+              )
+              .join("")
+
+          : '<div class="empty">監査ログはありません</div>'
+      }
+    `;
 }
 
 
@@ -1724,9 +2186,21 @@ function renderAuditList(rows) {
    トースト
 ========================= */
 
-function toast(message) {
+function toast(
+  message
+) {
   const node =
     $("#toast");
+
+  if (
+    !node
+  ) {
+    console.log(
+      message
+    );
+
+    return;
+  }
 
   node.textContent =
     message;
@@ -1745,6 +2219,7 @@ function toast(message) {
         node.classList.remove(
           "show"
         ),
+
       2400
     );
 }
@@ -1754,29 +2229,34 @@ function toast(message) {
    イベント
 ========================= */
 
-$("#reason").addEventListener(
-  "change",
-  event => {
-    $("#otherReasonWrap").hidden =
-      event.target.value !==
-      "その他";
-  }
-);
+$("#reason")
+  ?.addEventListener(
+    "change",
+    event => {
+      $("#otherReasonWrap")
+        .hidden =
+          event.target.value !==
+          "その他";
+    }
+  );
 
-$$('input[name="makeup"]')
-  .forEach(input =>
+$$(
+  'input[name="makeup"]'
+).forEach(
+  input =>
     input.addEventListener(
       "change",
       event => {
-        $("#makeupFields").hidden =
-          event.target.value ===
-          "no";
+        $("#makeupFields")
+          .hidden =
+            event.target.value ===
+            "no";
       }
     )
-  );
+);
 
 $("#prevMonth")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     () => {
       calendarCursor =
@@ -1791,7 +2271,7 @@ $("#prevMonth")
   );
 
 $("#nextMonth")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     () => {
       calendarCursor =
@@ -1806,26 +2286,28 @@ $("#nextMonth")
   );
 
 $("#makeupClassroom")
-  .addEventListener(
+  ?.addEventListener(
     "change",
     () => {
       chooseFirstAvailableSlot();
+
       renderCalendar();
     }
   );
 
 $("#verifyStudentButton")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     verifyStudentName
   );
 
 $("#studentNameInput")
-  .addEventListener(
+  ?.addEventListener(
     "keydown",
     event => {
       if (
-        event.key === "Enter"
+        event.key ===
+        "Enter"
       ) {
         event.preventDefault();
 
@@ -1835,14 +2317,17 @@ $("#studentNameInput")
   );
 
 
-/* LINEログインボタン */
+/* =========================
+   LINEログインボタン
+========================= */
 
 $("#lineLoginButton")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     async () => {
-      $("#parentLoginError").textContent =
-        "";
+      $("#parentLoginError")
+        .textContent =
+          "";
 
       try {
         if (
@@ -1876,7 +2361,9 @@ $("#lineLoginButton")
         pendingLineIdToken =
           window.liff.getIDToken();
 
-        if (!pendingLineIdToken) {
+        if (
+          !pendingLineIdToken
+        ) {
           throw new Error(
             "LINEの本人確認情報を取得できませんでした"
           );
@@ -1894,26 +2381,32 @@ $("#lineLoginButton")
             "linkView"
           );
         }
-      } catch (error) {
+      } catch (
+        error
+      ) {
         clearSession();
 
-        $("#parentLoginError").textContent =
-          error.message;
+        $("#parentLoginError")
+          .textContent =
+            error.message;
       }
     }
   );
 
 
-/* LINE連携コード */
+/* =========================
+   LINE連携コード
+========================= */
 
 $("#linkForm")
-  .addEventListener(
+  ?.addEventListener(
     "submit",
     async event => {
       event.preventDefault();
 
-      $("#linkError").textContent =
-        "";
+      $("#linkError")
+        .textContent =
+          "";
 
       try {
         if (
@@ -1925,7 +2418,9 @@ $("#linkForm")
                 false
             });
 
-          if (!loggedIn) {
+          if (
+            !loggedIn
+          ) {
             throw new Error(
               "もう一度LINEでログインしてください"
             );
@@ -1934,42 +2429,57 @@ $("#linkForm")
 
         await exchangeLineIdentity(
           pendingLineIdToken,
+
           $("#linkCode")
             .value
             .trim()
         );
 
-        $("#linkCode").value =
-          "";
-      } catch (error) {
-        $("#linkError").textContent =
-          error.message;
+        $("#linkCode")
+          .value =
+            "";
+      } catch (
+        error
+      ) {
+        $("#linkError")
+          .textContent =
+            error.message;
       }
     }
   );
 
 
-/* 先生ログイン */
+/* =========================
+   先生ログイン
+========================= */
 
 $("#loginForm")
-  .addEventListener(
+  ?.addEventListener(
     "submit",
     async event => {
       event.preventDefault();
 
-      $("#loginError").textContent =
-        "";
+      $("#loginError")
+        .textContent =
+          "";
 
       try {
         await signIn(
-          $("#loginEmail").value.trim(),
-          $("#loginPassword").value
+          $("#loginEmail")
+            .value
+            .trim(),
+
+          $("#loginPassword")
+            .value
         );
 
         await loadOwnProfile();
 
         if (
-          !["teacher", "admin"].includes(
+          ![
+            "teacher",
+            "admin"
+          ].includes(
             currentProfile.role
           )
         ) {
@@ -1978,48 +2488,55 @@ $("#loginForm")
           );
         }
 
-        $("#todayLabel").textContent =
-          new Intl.DateTimeFormat(
-            "ja-JP",
-            {
-              year:
-                "numeric",
+        $("#todayLabel")
+          .textContent =
+            new Intl.DateTimeFormat(
+              "ja-JP",
+              {
+                year:
+                  "numeric",
 
-              month:
-                "long",
+                month:
+                  "long",
 
-              day:
-                "numeric",
+                day:
+                  "numeric",
 
-              weekday:
-                "long"
-            }
-          ).format(
-            new Date()
-          );
+                weekday:
+                  "long"
+              }
+            ).format(
+              new Date()
+            );
 
-        $("#syncStatus").textContent =
-          `🔒 ${currentProfile.role === "admin" ? "管理者" : "先生"}権限／サーバー側RLS適用中`;
+        $("#syncStatus")
+          .textContent =
+            `🔒 ${currentProfile.role === "admin" ? "管理者" : "先生"}権限／サーバー側RLS適用中`;
 
         showView(
           "teacherView"
         );
 
         await renderAdmin();
-      } catch (error) {
+      } catch (
+        error
+      ) {
         clearSession();
 
-        $("#loginError").textContent =
-          error.message;
+        $("#loginError")
+          .textContent =
+            error.message;
       }
     }
   );
 
 
-/* 欠席送信 */
+/* =========================
+   欠席送信
+========================= */
 
 $("#absenceForm")
-  .addEventListener(
+  ?.addEventListener(
     "submit",
     async event => {
       event.preventDefault();
@@ -2027,14 +2544,17 @@ $("#absenceForm")
       const chosen =
         selectedStudents();
 
-      if (!chosen.length) {
+      if (
+        !chosen.length
+      ) {
         return toast(
           "お子さまを選択してください"
         );
       }
 
       const wantsMakeup =
-        $('input[name="makeup"]:checked').value ===
+        $('input[name="makeup"]:checked')
+          .value ===
         "yes";
 
       const reason =
@@ -2053,7 +2573,9 @@ $("#absenceForm")
       if (
         wantsMakeup &&
         (
-          !Number.isSafeInteger(slotId) ||
+          !Number.isSafeInteger(
+            slotId
+          ) ||
           slotId < 1
         )
       ) {
@@ -2063,31 +2585,33 @@ $("#absenceForm")
       }
 
       const rows =
-        chosen.map(student => ({
-          student_id:
-            student.id,
+        chosen.map(
+          student => ({
+            student_id:
+              student.id,
 
-          regular_weekday:
-            $("#regularWeekday").value,
+            regular_weekday:
+              $("#regularWeekday").value,
 
-          absence_date:
-            $("#absenceDate").value,
+            absence_date:
+              $("#absenceDate").value,
 
-          reason,
+            reason,
 
-          wants_makeup:
-            wantsMakeup,
+            wants_makeup:
+              wantsMakeup,
 
-          makeup_date:
-            wantsMakeup
-              ? selectedMakeupDate
-              : null,
+            makeup_date:
+              wantsMakeup
+                ? selectedMakeupDate
+                : null,
 
-          makeup_slot_id:
-            wantsMakeup
-              ? slotId
-              : null
-        }));
+            makeup_slot_id:
+              wantsMakeup
+                ? slotId
+                : null
+          })
+        );
 
       const button =
         event.submitter;
@@ -2107,63 +2631,83 @@ $("#absenceForm")
         const selectedSlot =
           makeupSlots.find(
             slot =>
-              Number(slot.id) ===
+              Number(
+                slot.id
+              ) ===
                 slotId &&
               slot.lesson_date ===
                 selectedMakeupDate
           );
 
-        $("#completeMessage").textContent =
-          `${chosen.map(student => student.name).join("・")}さんの連絡を受け付けました。`;
+        $("#completeMessage")
+          .textContent =
+            `${chosen.map(student => student.name).join("・")}さんの連絡を受け付けました。`;
 
-        $("#completeSummary").innerHTML = `
-          <div class="summary-row">
-            <span>通常曜日</span>
-            <b>
-              ${escapeHtml($("#regularWeekday").value)}
-            </b>
-          </div>
+        $("#completeSummary")
+          .innerHTML = `
+            <div class="summary-row">
+              <span>
+                通常曜日
+              </span>
 
-          <div class="summary-row">
-            <span>欠席日</span>
-            <b>
-              ${formatDate($("#absenceDate").value)}
-            </b>
-          </div>
+              <b>
+                ${escapeHtml($("#regularWeekday").value)}
+              </b>
+            </div>
 
-          <div class="summary-row">
-            <span>理由</span>
-            <b>
-              ${escapeHtml(reason)}
-            </b>
-          </div>
+            <div class="summary-row">
+              <span>
+                欠席日
+              </span>
 
-          <div class="summary-row">
-            <span>振替</span>
+              <b>
+                ${formatDate($("#absenceDate").value)}
+              </b>
+            </div>
 
-            <b>
-              ${
-                wantsMakeup
-                  ? `${formatDate(selectedSlot?.lesson_date)} ${escapeHtml(formatTime(selectedSlot?.start_time))}〜`
-                  : "希望なし"
-              }
-            </b>
-          </div>
+            <div class="summary-row">
+              <span>
+                理由
+              </span>
 
-          <div class="summary-row">
-            <span>受付番号</span>
-            <b>
-              ${escapeHtml(result.receipt_number)}
-            </b>
-          </div>
-        `;
+              <b>
+                ${escapeHtml(reason)}
+              </b>
+            </div>
+
+            <div class="summary-row">
+              <span>
+                振替
+              </span>
+
+              <b>
+                ${
+                  wantsMakeup
+                    ? `${formatDate(selectedSlot?.lesson_date)} ${escapeHtml(formatTime(selectedSlot?.start_time))}〜`
+                    : "希望なし"
+                }
+              </b>
+            </div>
+
+            <div class="summary-row">
+              <span>
+                受付番号
+              </span>
+
+              <b>
+                ${escapeHtml(result.receipt_number)}
+              </b>
+            </div>
+          `;
 
         await loadMakeupSlots();
 
         showView(
           "completeView"
         );
-      } catch (error) {
+      } catch (
+        error
+      ) {
         toast(
           error.message
         );
@@ -2178,14 +2722,19 @@ $("#absenceForm")
   );
 
 
-/* その他のボタン */
+/* =========================
+   その他ボタン
+========================= */
 
 $("#teacherLink")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     () =>
       showView(
-        ["teacher", "admin"].includes(
+        [
+          "teacher",
+          "admin"
+        ].includes(
           currentProfile?.role
         )
           ? "teacherView"
@@ -2194,19 +2743,19 @@ $("#teacherLink")
   );
 
 $("#homeButton")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     () =>
       showView(
         currentProfile?.role ===
-          "guardian"
+        "guardian"
           ? "parentView"
           : "parentLoginView"
       )
   );
 
 $("#backHome")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     () =>
       showView(
@@ -2215,7 +2764,7 @@ $("#backHome")
   );
 
 $("#sendAnother")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     () =>
       showView(
@@ -2224,7 +2773,7 @@ $("#sendAnother")
   );
 
 $("#parentLogoutButton")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     async () => {
       await signOut();
@@ -2236,7 +2785,7 @@ $("#parentLogoutButton")
   );
 
 $("#logoutButton")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     async () => {
       await signOut();
@@ -2247,16 +2796,19 @@ $("#logoutButton")
     }
   );
 
-$$(".admin-tab")
-  .forEach(button =>
+$$(
+  ".admin-tab"
+).forEach(
+  button =>
     button.addEventListener(
       "click",
       async () => {
         $$(".admin-tab")
-          .forEach(tab =>
-            tab.classList.remove(
-              "active"
-            )
+          .forEach(
+            tab =>
+              tab.classList.remove(
+                "active"
+              )
           );
 
         button.classList.add(
@@ -2269,23 +2821,24 @@ $$(".admin-tab")
         await renderAdmin();
       }
     )
-  );
+);
 
 [
   "classroomFilter",
   "dateFilter"
-].forEach(id =>
-  $(`#${id}`)
-    .addEventListener(
-      "change",
-      renderAdmin
-    )
+].forEach(
+  id =>
+    $(`#${id}`)
+      ?.addEventListener(
+        "change",
+        renderAdmin
+      )
 );
 
 let searchTimer;
 
 $("#studentSearch")
-  .addEventListener(
+  ?.addEventListener(
     "input",
     () => {
       clearTimeout(
@@ -2301,24 +2854,27 @@ $("#studentSearch")
   );
 
 $("#clearFilters")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     () => {
-      $("#classroomFilter").value =
-        "all";
+      $("#classroomFilter")
+        .value =
+          "all";
 
-      $("#dateFilter").value =
-        "";
+      $("#dateFilter")
+        .value =
+          "";
 
-      $("#studentSearch").value =
-        "";
+      $("#studentSearch")
+        .value =
+          "";
 
       renderAdmin();
     }
   );
 
 $("#exportAbsenceCsv")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     async () => {
       await exportNamedCsv(
@@ -2329,7 +2885,7 @@ $("#exportAbsenceCsv")
   );
 
 $("#exportMakeupCsv")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     async () => {
       await exportNamedCsv(
@@ -2340,7 +2896,7 @@ $("#exportMakeupCsv")
   );
 
 $("#exportPendingCsv")
-  .addEventListener(
+  ?.addEventListener(
     "click",
     async () => {
       await exportNamedCsv(
@@ -2360,14 +2916,17 @@ async function init() {
 
   setConnectionNotice();
 
-  $("#absenceDate").value =
-    dateIso();
+  $("#absenceDate")
+    .value =
+      dateIso();
 
-  $("#absenceDate").min =
-    dateIso(-30);
+  $("#absenceDate")
+    .min =
+      dateIso(-30);
 
-  $("#makeupDate").value =
-    selectedMakeupDate;
+  $("#makeupDate")
+    .value =
+      selectedMakeupDate;
 
   calendarCursor =
     new Date(
@@ -2385,16 +2944,17 @@ async function init() {
   ) {
     try {
       await initializeLiff();
-    } catch (error) {
+    } catch (
+      error
+    ) {
       clearSession();
 
       /*
-        起動直後に一時的に出る
-        students権限エラーだけは
-        ログイン画面に表示しない。
-        LINEボタンを押した際は
-        通常どおりエラー表示する。
-      */
+       * 起動直後だけ発生する
+       * students権限エラーは
+       * ログイン画面には表示しない。
+       */
+
       if (
         !String(
           error?.message ||
@@ -2403,8 +2963,9 @@ async function init() {
           "permission denied for table students"
         )
       ) {
-        $("#parentLoginError").textContent =
-          error.message;
+        $("#parentLoginError")
+          .textContent =
+            error.message;
       }
     }
   }
