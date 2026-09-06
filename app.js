@@ -949,7 +949,7 @@ function renderMakeupSlotOptions() {
         : '<option value="">この日の授業枠はありません</option>';
 
   const selectable =
-         slots.find(
+    slots.find(
       slot =>
         !slot.is_full
     );
@@ -1398,7 +1398,7 @@ async function renderClosuresAdmin(
         class="slot-form"
         style="margin-bottom:24px;"
       >
-        <label>
+    <label>
           表示する月
 
           <input
@@ -1881,7 +1881,7 @@ async function renderStudentsAdmin() {
         </legend>
 
         <div style="display:flex;flex-wrap:wrap;gap:10px 14px;">
-          ${["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"].map(day => `
+          ${STUDENT_WEEKDAYS.map(day => `
             <label style="display:flex;align-items:center;gap:6px;margin:0;">
               <input
                 class="student-admin-regular"
@@ -1899,7 +1899,7 @@ async function renderStudentsAdmin() {
         <select id="studentAdminGuardian">
           <option value="">未設定</option>
           ${guardians.map(guardian => `
-                      <option value="${escapeHtml(guardian.id)}">
+            <option value="${escapeHtml(guardian.id)}">
               ${escapeHtml(guardian.display_name || "名称未設定")}
             </option>
           `).join("")}
@@ -2098,7 +2098,7 @@ async function saveStudentAdminForm(event) {
           .value === "true",
       guardianId:
         $("#studentAdminGuardian")
-          .value || null
+         .value || null
     });
 
     toast(
@@ -2114,6 +2114,300 @@ async function saveStudentAdminForm(event) {
     );
     button.disabled = false;
   }
+}
+
+
+/* =========================
+   LINE連携コード管理
+========================= */
+
+async function loadAdminGuardianInvites() {
+  return api(
+    "/rest/v1/rpc/admin_guardian_invite_list",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    }
+  );
+}
+
+async function createAdminGuardianInvite(studentIds) {
+  return api(
+    "/rest/v1/rpc/admin_create_guardian_invite",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_student_ids: studentIds,
+        p_guardian_display_name: null,
+        p_expire_days: 30
+      })
+    }
+  );
+}
+
+async function disableAdminGuardianInvite(id) {
+  return api(
+    "/rest/v1/rpc/admin_disable_guardian_invite",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_id: Number(id)
+      })
+    }
+  );
+}
+
+function inviteStatus(row) {
+  if (row.used_at) {
+    return "使用済み";
+  }
+
+  if (!row.active) {
+    return "無効";
+  }
+
+  if (
+    row.expires_at &&
+    new Date(row.expires_at).getTime() < Date.now()
+  ) {
+    return "期限切れ";
+  }
+
+  return "未使用";
+}
+
+async function copyText(value) {
+  const text = String(value || "");
+
+  if (!text) {
+    return;
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const input = document.createElement("textarea");
+  input.value = text;
+  input.setAttribute("readonly", "");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.appendChild(input);
+  input.select();
+  document.execCommand("copy");
+  input.remove();
+}
+
+async function renderGuardianInvitesAdmin() {
+  if (currentProfile?.role !== "admin") {
+    $("#stats").innerHTML = "";
+    $("#adminContent").innerHTML =
+      '<div class="empty">LINE連携コードの発行は管理者のみ利用できます。</div>';
+    return;
+  }
+
+  $("#stats").innerHTML = "";
+
+  const [students, invites] = await Promise.all([
+    loadAdminStudents(),
+    loadAdminGuardianInvites()
+  ]);
+
+  const activeStudents = students.filter(student => student.active);
+
+  $("#adminContent").innerHTML = `
+    <div class="list-title">
+      <h2>LINE連携</h2>
+      <span class="badge">発行履歴 ${invites.length}件</span>
+    </div>
+
+    <p class="privacy-note compact">
+      初回連携するご家庭の生徒を選び、1つの連携コードを発行します。兄弟は複数人を同時に選択してください。
+    </p>
+
+    <form id="guardianInviteForm" class="slot-form" style="margin-top:18px;">
+      <div style="grid-column:1/-1;">
+        <b>連携する生徒</b>
+
+        <div style="display:grid;gap:10px;margin-top:12px;">
+          ${activeStudents.length
+            ? activeStudents.map(student => `
+                <label style="display:flex;align-items:center;gap:10px;margin:0;">
+                  <input
+                    class="guardian-invite-student"
+                    type="checkbox"
+                    value="${student.id}"
+                    style="width:20px;height:20px;min-width:20px;"
+                  >
+                  <span>
+                    <b>${escapeHtml(student.name)}</b>
+                    <small>
+                      ${escapeHtml(student.classroom || "教室未設定")}
+                      ／ ${escapeHtml(student.grade || "学年未設定")}
+                    </small>
+                  </span>
+                </label>
+              `).join("")
+            : '<div class="empty">在籍生徒がいません</div>'
+          }
+        </div>
+      </div>
+
+      <button
+        class="primary-button"
+        type="submit"
+        ${activeStudents.length ? "" : "disabled"}
+      >
+        LINE連携コードを発行
+      </button>
+    </form>
+
+    <p class="privacy-note compact" style="margin-top:14px;">
+      コードの有効期限は発行から30日です。保護者表示名の入力は不要です。
+    </p>
+
+    <div class="slot-list" style="margin-top:22px;">
+      ${invites.length
+        ? invites.map(row => {
+            const status = inviteStatus(row);
+            const canDisable = status === "未使用";
+
+            return `
+              <div class="slot-row ${status === "未使用" ? "" : "is-full"}">
+                <div>
+                  <b style="font-size:1.15rem;letter-spacing:.08em;">
+                    ${escapeHtml(row.code)}
+                  </b>
+
+                  <span>
+                    ${escapeHtml(row.student_names || "生徒未設定")}
+                  </span>
+
+                  <span>
+                    状態：${escapeHtml(status)}
+                    ${row.expires_at
+                      ? ` ／ 有効期限：${escapeHtml(new Date(row.expires_at).toLocaleDateString("ja-JP"))}`
+                      : ""
+                    }
+                  </span>
+                </div>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button
+                    class="small-button"
+                    type="button"
+                    data-copy-invite="${escapeHtml(row.code)}"
+                  >
+                    コピー
+                  </button>
+
+                  ${canDisable
+                    ? `
+                      <button
+                        class="small-button"
+                        type="button"
+                        data-disable-invite="${row.id}"
+                      >
+                        無効化
+                      </button>
+                    `
+                    : ""
+                  }
+                </div>
+              </div>
+            `;
+          }).join("")
+        : '<div class="empty">まだ連携コードは発行されていません</div>'
+      }
+    </div>
+  `;
+
+  $("#guardianInviteForm")
+    ?.addEventListener(
+      "submit",
+      async event => {
+        event.preventDefault();
+
+        const studentIds = $$(".guardian-invite-student:checked")
+          .map(input => Number(input.value))
+          .filter(id => Number.isSafeInteger(id) && id > 0);
+
+        if (!studentIds.length) {
+          return toast("生徒を1名以上選択してください");
+        }
+
+        const button = event.submitter;
+        button.disabled = true;
+
+        try {
+          const result = await createAdminGuardianInvite(studentIds);
+          const code = Array.isArray(result)
+            ? result[0]?.invite_code
+            : result?.invite_code;
+
+          if (!code) {
+            throw new Error("連携コードを取得できませんでした");
+          }
+
+          await copyText(code).catch(() => {});
+          toast(`連携コード ${code} を発行しました`);
+          await renderGuardianInvitesAdmin();
+        } catch (error) {
+          toast(error.message);
+          button.disabled = false;
+        }
+      }
+    );
+
+  $$('[data-copy-invite]')
+    .forEach(button =>
+      button.addEventListener(
+        "click",
+        async () => {
+          try {
+            await copyText(button.dataset.copyInvite);
+            toast("連携コードをコピーしました");
+          } catch (error) {
+            toast("コピーできませんでした");
+          }
+        }
+      )
+    );
+
+  $$('[data-disable-invite]')
+    .forEach(button =>
+      button.addEventListener(
+        "click",
+        async () => {
+          const id = Number(button.dataset.disableInvite);
+
+          if (!Number.isSafeInteger(id) || id < 1) {
+            return;
+          }
+
+          button.disabled = true;
+
+          try {
+            await disableAdminGuardianInvite(id);
+            toast("連携コードを無効化しました");
+            await renderGuardianInvitesAdmin();
+          } catch (error) {
+            toast(error.message);
+            button.disabled = false;
+          }
+        }
+      )
+    );
 }
 
 
@@ -2176,6 +2470,15 @@ async function renderAdmin() {
       "students"
     ) {
       await renderStudentsAdmin();
+
+      return;
+    }
+
+    if (
+      currentTab ===
+      "guardianInvites"
+    ) {
+      await renderGuardianInvitesAdmin();
 
       return;
     }
@@ -2849,7 +3152,7 @@ async function exportRowsCsv(
       "CSV share failed:",
       error
     );
-       }
+  }
 
   const url =
     URL.createObjectURL(
@@ -3378,9 +3681,7 @@ $("#absenceForm")
               student.id,
 
             regular_weekday:
-              student.regular ||
-              $("#regularWeekday")?.value ||
-              null,
+              $("#regularWeekday").value,
 
             absence_date:
               $("#absenceDate").value,
@@ -3439,16 +3740,7 @@ $("#absenceForm")
               </span>
 
               <b>
-                ${escapeHtml(
-                  [...new Set(
-                    chosen.map(
-                      student =>
-                        student.regular ||
-                        $("#regularWeekday")?.value ||
-                        "未設定"
-                    )
-                  )].join("／")
-                )}
+                ${escapeHtml($("#regularWeekday").value)}
               </b>
             </div>
 
