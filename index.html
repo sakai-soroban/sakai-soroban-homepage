@@ -2,8 +2,16 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#06c755">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#06c755"
+  >
 
   <meta
     http-equiv="Content-Security-Policy"
@@ -25,12 +33,21 @@
     "
   >
 
-  <meta name="referrer" content="no-referrer">
+  <meta
+    name="referrer"
+    content="no-referrer"
+  >
 
-  <title>さかいそろばん教室｜欠席・振替連絡</title>
+  <title>
+    さかいそろばん教室｜欠席・振替連絡
+  </title>
 
-  <link rel="stylesheet" href="styles.css">
+  <link
+    rel="stylesheet"
+    href="styles.css"
+  >
 </head>
+
 
 <body>
 
@@ -46,16 +63,24 @@
       type="button"
       aria-label="ホームへ"
     >
+
       <img
         src="logo.svg"
         alt="さかいそろばん教室ロゴ"
       >
 
       <span>
-        <small>福沼教室・穂波教室</small>
-        <b>さかいそろばん教室</b>
+        <small>
+          福沼教室・穂波教室
+        </small>
+
+        <b>
+          さかいそろばん教室
+        </b>
       </span>
+
     </button>
+
 
     <div class="header-actions">
 
@@ -79,6 +104,7 @@
     </div>
 
   </header>
+
 
 
   <main>
@@ -111,35 +137,54 @@
           約30秒で送信できます
         </p>
 
+
         <div
           class="login-divider"
           aria-hidden="true"
         ></div>
+
 
         <p
           id="parentLoginError"
           class="error-text"
         ></p>
 
+
         <button
           class="line-login-button"
           id="lineLoginButton"
           type="button"
         >
-          <span>LINE</span>
+          <span>
+            LINE
+          </span>
+
           LINEで本人確認して利用する
         </button>
+
 
         <div
           class="login-divider"
           aria-hidden="true"
         ></div>
 
+
         <ul class="login-benefits">
-          <li>パスワード不要</li>
-          <li>兄弟もまとめて連絡可能</li>
-          <li>24時間受付</li>
+
+          <li>
+            パスワード不要
+          </li>
+
+          <li>
+            兄弟もまとめて連絡可能
+          </li>
+
+          <li>
+            24時間受付
+          </li>
+
         </ul>
+
 
         <p class="privacy-note">
           🔒 ログインしたご家庭のお子さまだけが表示されます。
@@ -150,6 +195,7 @@
       </div>
 
     </section>
+
 
 
     <!-- =========================
@@ -177,8 +223,9 @@
         </h1>
 
         <p>
-          教室から案内されたワンタイム連携コードを入力してください。
+          教室から案内された連携コードを入力してください。
         </p>
+
 
         <form id="linkForm">
 
@@ -189,9 +236,10 @@
           <input
             id="linkCode"
             type="text"
-            inputmode="numeric"
             autocomplete="one-time-code"
             maxlength="12"
+            autocapitalize="characters"
+            spellcheck="false"
             required
           >
 
@@ -209,13 +257,15 @@
 
         </form>
 
+
         <p class="privacy-note">
-          コードは一度使うと無効になります。
+          コードは一度使用すると無効になります。
         </p>
 
       </div>
 
     </section>
+
 
 
     <!-- =========================
@@ -252,18 +302,23 @@
       </div>
 
 
+
       <form
         id="absenceForm"
         class="form-shell"
       >
 
-        <!-- 生徒 -->
+        <!-- =========================
+             1. 生徒
+        ========================= -->
 
         <section class="form-section">
 
           <div class="section-head">
 
-            <span>1</span>
+            <span>
+              1
+            </span>
 
             <div>
 
@@ -279,9 +334,11 @@
 
           </div>
 
+
           <label for="studentNameInput">
             生徒名
           </label>
+
 
           <div class="student-name-entry">
 
@@ -302,17 +359,20 @@
 
           </div>
 
+
           <p
             id="studentMatchError"
             class="match-error"
             aria-live="polite"
           ></p>
 
+
           <div
             id="studentChoices"
             class="verified-students"
             aria-live="polite"
           ></div>
+
 
           <p class="privacy-note compact">
             🔒 LINE連携済みのご家庭に紐づくお子さまだけを表示しています
@@ -321,13 +381,18 @@
         </section>
 
 
-        <!-- 欠席日 -->
+
+        <!-- =========================
+             2. 欠席日
+        ========================= -->
 
         <section class="form-section">
 
           <div class="section-head">
 
-            <span>2</span>
+            <span>
+              2
+            </span>
 
             <div>
 
@@ -343,6 +408,7 @@
 
           </div>
 
+
           <label for="regularWeekday">
             通常の授業曜日
           </label>
@@ -351,18 +417,37 @@
             id="regularWeekday"
             required
           >
+
             <option value="">
               曜日を選択してください
             </option>
 
-            <option>月曜日</option>
-            <option>火曜日</option>
-            <option>水曜日</option>
-            <option>木曜日</option>
-            <option>金曜日</option>
-            <option>土曜日</option>
-            <option>日曜日</option>
+            <option>
+              月曜日
+            </option>
+
+            <option>
+              火曜日
+            </option>
+
+            <option>
+              水曜日
+            </option>
+
+            <option>
+              木曜日
+            </option>
+
+            <option>
+              金曜日
+            </option>
+
+            <option>
+              土曜日
+            </option>
+
           </select>
+
 
           <label for="absenceDate">
             欠席日
@@ -374,6 +459,7 @@
             required
           >
 
+
           <label for="reason">
             欠席理由
           </label>
@@ -382,16 +468,33 @@
             id="reason"
             required
           >
+
             <option value="">
               理由を選択してください
             </option>
 
-            <option>体調不良</option>
-            <option>学校・園の行事</option>
-            <option>ご家庭の都合</option>
-            <option>旅行・帰省</option>
-            <option>その他</option>
+            <option>
+              体調不良
+            </option>
+
+            <option>
+              学校・園の行事
+            </option>
+
+            <option>
+              ご家庭の都合
+            </option>
+
+            <option>
+              旅行・帰省
+            </option>
+
+            <option>
+              その他
+            </option>
+
           </select>
+
 
           <div
             id="otherReasonWrap"
@@ -400,12 +503,15 @@
 
             <label for="otherReason">
               詳しい理由
-              <small>（任意）</small>
+              <small>
+                （任意）
+              </small>
             </label>
 
             <input
               id="otherReason"
               type="text"
+              maxlength="200"
               placeholder="理由をご入力ください"
             >
 
@@ -414,13 +520,18 @@
         </section>
 
 
-        <!-- 振替 -->
+
+        <!-- =========================
+             3. 振替
+        ========================= -->
 
         <section class="form-section">
 
           <div class="section-head">
 
-            <span>3</span>
+            <span>
+              3
+            </span>
 
             <div>
 
@@ -435,6 +546,7 @@
             </div>
 
           </div>
+
 
           <div class="toggle-choice">
 
@@ -453,6 +565,7 @@
 
             </label>
 
+
             <label>
 
               <input
@@ -469,6 +582,8 @@
 
           </div>
 
+
+
           <div id="makeupFields">
 
             <label for="makeupClassroom">
@@ -477,14 +592,22 @@
 
             <select id="makeupClassroom">
 
-              <option>福沼教室</option>
-              <option>穂波教室</option>
+              <option>
+                福沼教室
+              </option>
+
+              <option>
+                穂波教室
+              </option>
 
             </select>
+
+
 
             <label>
               振替希望日
             </label>
+
 
             <div
               class="calendar"
@@ -513,15 +636,39 @@
 
               </div>
 
+
               <div class="weekdays">
-                <span>日</span>
-                <span>月</span>
-                <span>火</span>
-                <span>水</span>
-                <span>木</span>
-                <span>金</span>
-                <span>土</span>
+
+                <span>
+                  日
+                </span>
+
+                <span>
+                  月
+                </span>
+
+                <span>
+                  火
+                </span>
+
+                <span>
+                  水
+                </span>
+
+                <span>
+                  木
+                </span>
+
+                <span>
+                  金
+                </span>
+
+                <span>
+                  土
+                </span>
+
               </div>
+
 
               <div
                 id="calendarDays"
@@ -530,20 +677,26 @@
 
             </div>
 
+
             <input
               id="makeupDate"
               type="hidden"
             >
 
+
             <label for="makeupSlot">
               希望時間
             </label>
 
+
             <select id="makeupSlot">
+
               <option value="">
                 授業枠を読み込んでいます
               </option>
+
             </select>
+
 
             <p
               id="slotAvailability"
@@ -554,6 +707,7 @@
           </div>
 
         </section>
+
 
 
         <div class="sticky-submit">
@@ -570,6 +724,7 @@
       </form>
 
     </section>
+
 
 
     <!-- =========================
@@ -602,14 +757,17 @@
 
         <p id="completeMessage"></p>
 
+
         <div
           id="completeSummary"
           class="complete-summary"
         ></div>
 
+
         <p class="reply-note">
           教室で内容を確認後、必要な場合のみご連絡します。
         </p>
+
 
         <button
           id="sendAnother"
@@ -618,6 +776,7 @@
         >
           続けて連絡する
         </button>
+
 
         <button
           id="backHome"
@@ -630,6 +789,7 @@
       </div>
 
     </section>
+
 
 
     <!-- =========================
@@ -660,6 +820,7 @@
           登録された先生のアカウントでログインしてください。
         </p>
 
+
         <form id="loginForm">
 
           <label for="loginEmail">
@@ -673,6 +834,7 @@
             required
           >
 
+
           <label for="loginPassword">
             パスワード
           </label>
@@ -684,10 +846,12 @@
             required
           >
 
+
           <p
             id="loginError"
             class="error-text"
           ></p>
+
 
           <button
             class="primary-button"
@@ -698,11 +862,13 @@
 
         </form>
 
+
         <p class="connection-notice"></p>
 
       </div>
 
     </section>
+
 
 
     <!-- =========================
@@ -730,6 +896,7 @@
 
         </div>
 
+
         <button
           id="logoutButton"
           class="outline-button"
@@ -741,7 +908,10 @@
       </div>
 
 
-      <!-- 検索 -->
+
+      <!-- =========================
+           検索
+      ========================= -->
 
       <div class="search-panel">
 
@@ -763,7 +933,9 @@
             </option>
 
           </select>
+
         </label>
+
 
         <label>
           日付
@@ -772,7 +944,9 @@
             id="dateFilter"
             type="date"
           >
+
         </label>
+
 
         <label>
           生徒検索
@@ -782,7 +956,9 @@
             type="search"
             placeholder="名前を入力"
           >
+
         </label>
+
 
         <button
           id="clearFilters"
@@ -795,13 +971,17 @@
       </div>
 
 
+
       <div
         id="syncStatus"
         class="sync-status"
       ></div>
 
 
-      <!-- CSV -->
+
+      <!-- =========================
+           CSV
+      ========================= -->
 
       <div class="csv-toolbar">
 
@@ -832,10 +1012,12 @@
       </div>
 
 
+
       <div
         class="stats"
         id="stats"
       ></div>
+
 
 
       <!-- =========================
@@ -855,6 +1037,7 @@
           今日の欠席
         </button>
 
+
         <button
           class="admin-tab"
           data-tab="todayMakeups"
@@ -862,6 +1045,7 @@
         >
           今日の振替
         </button>
+
 
         <button
           class="admin-tab"
@@ -871,6 +1055,7 @@
           未振替
         </button>
 
+
         <button
           class="admin-tab"
           data-tab="all"
@@ -878,6 +1063,7 @@
         >
           全連絡
         </button>
+
 
         <button
           class="admin-tab"
@@ -887,7 +1073,6 @@
           授業枠・定員
         </button>
 
-        <!-- ★ 生徒管理 -->
 
         <button
           class="admin-tab"
@@ -897,7 +1082,15 @@
           生徒管理
         </button>
 
-        <!-- ★ 休講日管理 -->
+
+        <button
+          class="admin-tab"
+          data-tab="guardianInvites"
+          type="button"
+        >
+          LINE連携
+        </button>
+
 
         <button
           class="admin-tab"
@@ -906,6 +1099,7 @@
         >
           休講日管理
         </button>
+
 
         <button
           class="admin-tab"
@@ -918,6 +1112,7 @@
       </nav>
 
 
+
       <div
         id="adminContent"
         class="admin-content"
@@ -928,16 +1123,23 @@
   </main>
 
 
-  <!-- トースト -->
+
+  <!-- =========================
+       トースト
+  ========================= -->
 
   <div
     id="toast"
     class="toast"
     role="status"
+    aria-live="polite"
   ></div>
 
 
-  <!-- LIFF -->
+
+  <!-- =========================
+       LINE LIFF SDK
+  ========================= -->
 
   <script
     charset="utf-8"
@@ -945,12 +1147,18 @@
   ></script>
 
 
-  <!-- 設定 -->
+
+  <!-- =========================
+       設定
+  ========================= -->
 
   <script src="config.js"></script>
 
 
-  <!-- アプリ -->
+
+  <!-- =========================
+       アプリ
+  ========================= -->
 
   <script src="app.js"></script>
 
