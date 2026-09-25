@@ -160,14 +160,20 @@ async function api(path, options = {}) {
     );
   }
 
-  if (response.status === 204) {
+  const text =
+    await response.text();
+
+  if (
+    !text ||
+    !text.trim()
+  ) {
     return null;
   }
 
-  return response.json();
+  return JSON.parse(
+    text
+  );
 }
-
-
 /* =========================
    セッション
 ========================= */
