@@ -702,8 +702,6 @@ async function initializeLiff({
 
   return true;
 }
-
-
 /* =========================
    振替カレンダー
 ========================= */
@@ -1193,8 +1191,6 @@ function ensureAdminClosureTab() {
       button
     );
 }
-
-
 /* =========================
    休講日管理
 ========================= */
@@ -1398,7 +1394,7 @@ async function renderClosuresAdmin(
         class="slot-form"
         style="margin-bottom:24px;"
       >
-    <label>
+        <label>
           表示する月
 
           <input
@@ -1705,7 +1701,6 @@ async function saveClosureForm(
       false;
   }
 }
-
 
 
 /* =========================
@@ -2098,7 +2093,7 @@ async function saveStudentAdminForm(event) {
           .value === "true",
       guardianId:
         $("#studentAdminGuardian")
-         .value || null
+          .value || null
     });
 
     toast(
@@ -2671,11 +2666,469 @@ function renderRecordList(
       }
     );
 }
-
-
 /* =========================
-   授業枠・定員
+   授業枠・定員／特別時間割
 ========================= */
+
+const WEEKDAY_LABELS = {
+  1: "月",
+  2: "火",
+  3: "水",
+  4: "木",
+  5: "金",
+  6: "土",
+  7: "日"
+};
+
+function weekdayLabel(value) {
+  return WEEKDAY_LABELS[Number(value)] || "毎日";
+}
+
+async function loadNormalLessonSlots() {
+  return api(
+    "/rest/v1/lesson_slots?select=id,classroom_id,weekday,start_time,end_time,capacity,active&active=eq.true&order=classroom_id.asc,weekday.asc,start_time.asc"
+  );
+}
+
+async function loadSpecialSchedules() {
+  return api(
+    "/rest/v1/special_schedules?select=id,name,classroom_id,start_date,end_date,source_type,source_classroom_id,active,created_at,special_schedule_slots(id,weekday,start_time,end_time,capacity,active)&order=start_date.asc,id.asc&limit=200"
+  );
+}
+
+async function createCustomSpecialSchedule({
+  name,
+  classroomId,
+  startDate,
+  endDate,
+  slots
+}) {
+  const created = await api(
+    "/rest/v1/special_schedules",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Prefer: "return=representation"
+      },
+      body: JSON.stringify({
+        name,
+        classroom_id: classroomId,
+        start_date: startDate,
+        end_date: endDate,
+        source_type: "custom",
+        source_classroom_id: null,
+        active: true
+      })
+    }
+  );
+
+  const scheduleId =
+    Array.isArray(created)
+      ? Number(created[0]?.id)
+      : Number(created?.id);
+
+  if (!Number.isSafeInteger(scheduleId) || scheduleId < 1) {
+    throw new Error("特別時間割を作成できませんでした");
+  }
+
+  try {
+    await api(
+      "/rest/v1/special_schedule_slots",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Prefer: "return=minimal"
+        },
+        body: JSON.stringify(
+          slots.map(slot => ({
+            special_schedule_id: scheduleId,
+            weekday: slot.weekday,
+            start_time: slot.startTime,
+            end_time: slot.endTime,
+            capacity: slot.capacity,
+            active: true
+          }))
+        )
+      }
+    );
+  } catch (error) {
+    await api(
+      `/rest/v1/special_schedules?id=eq.${scheduleId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Prefer: "return=minimal"
+        }
+      }
+    ).catch(() => {});
+
+    throw error;
+  }
+
+  return scheduleId;
+}
+
+async function createCopiedSpecialSchedule({
+  name,
+  targetClassroom,
+  sourceClassroom,
+  startDate,
+  endDate
+}) {
+  return api(
+    "/rest/v1/rpc/admin_copy_special_schedule",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_name: name,
+        p_target_classroom: targetClassroom,
+        p_source_classroom: sourceClassroom,
+        p_start_date: startDate,
+        p_end_date: endDate
+      })
+    }
+  );
+}
+
+async function specialScheduleHasReservations(schedule) {
+  const slotIds =
+    (schedule.special_schedule_slots || [])
+      .map(slot => Number(slot.id))
+      .filter(id => Number.isSafeInteger(id) && id > 0);
+
+  if (!slotIds.length) {
+    return false;
+  }
+
+  const params = new URLSearchParams();
+  params.set("select", "id");
+  params.set("status", "eq.reserved");
+  params.set(
+    "makeup_special_slot_id",
+    `in.(${slotIds.join(",")})`
+  );
+  params.set("limit", "1");
+
+  const rows = await api(
+    `/rest/v1/absence_records?${params}`
+  );
+
+  return rows.length > 0;
+}
+
+async function setSpecialScheduleActive(
+  id,
+  active
+) {
+  return api(
+    `/rest/v1/special_schedules?id=eq.${Number(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify({
+        active
+      })
+    }
+  );
+}
+
+async function deleteSpecialSchedule(
+  schedule
+) {
+  const hasReservations =
+    await specialScheduleHasReservations(
+      schedule
+    );
+
+  if (hasReservations) {
+    const ok = window.confirm(
+      "この特別時間割には、すでに振替予約が入っています。\n\n予約内容を残すため、削除ではなく『無効化』します。よろしいですか？"
+    );
+
+    if (!ok) {
+      return false;
+    }
+
+    await setSpecialScheduleActive(
+      schedule.id,
+      false
+    );
+
+    return "disabled";
+  }
+
+  const ok = window.confirm(
+    `「${schedule.name}」を削除します。よろしいですか？`
+  );
+
+  if (!ok) {
+    return false;
+  }
+
+  await api(
+    `/rest/v1/special_schedules?id=eq.${Number(schedule.id)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Prefer: "return=minimal"
+      }
+    }
+  );
+
+  return "deleted";
+}
+
+function specialScheduleOverlap(
+  schedules,
+  classroomId,
+  startDate,
+  endDate,
+  excludeId = null
+) {
+  return schedules.find(schedule =>
+    schedule.active === true &&
+    Number(schedule.classroom_id) === Number(classroomId) &&
+    Number(schedule.id) !== Number(excludeId) &&
+    schedule.start_date <= endDate &&
+    schedule.end_date >= startDate
+  );
+}
+
+function specialSlotRowHtml(slot = {}) {
+  const weekday =
+    slot.weekday == null
+      ? ""
+      : String(slot.weekday);
+
+  return `
+    <div
+      class="special-slot-row"
+      style="display:grid;grid-template-columns:minmax(90px,1fr) minmax(100px,1fr) minmax(100px,1fr) minmax(80px,.8fr) auto;gap:10px;align-items:end;margin-bottom:10px;"
+    >
+      <label>
+        曜日
+        <select class="special-slot-weekday">
+          <option value="" ${weekday === "" ? "selected" : ""}>毎日／1日設定</option>
+          ${Object.entries(WEEKDAY_LABELS).map(([value, label]) => `
+            <option value="${value}" ${weekday === value ? "selected" : ""}>
+              ${label}曜日
+            </option>
+          `).join("")}
+        </select>
+      </label>
+
+      <label>
+        開始
+        <input
+          class="special-slot-start"
+          type="time"
+          value="${escapeHtml(formatTime(slot.start_time || slot.startTime || "09:00"))}"
+          required
+        >
+      </label>
+
+      <label>
+        終了
+        <input
+          class="special-slot-end"
+          type="time"
+          value="${escapeHtml(formatTime(slot.end_time || slot.endTime || "10:00"))}"
+          required
+        >
+      </label>
+
+      <label>
+        定員
+        <input
+          class="special-slot-capacity"
+          type="number"
+          min="1"
+          max="100"
+          value="${Number(slot.capacity || 5)}"
+          required
+        >
+      </label>
+
+      <button
+        class="small-button special-slot-remove"
+        type="button"
+      >
+        削除
+      </button>
+    </div>
+  `;
+}
+
+function addSpecialSlotRow(
+  slot = {}
+) {
+  const container =
+    $("#specialSlotsEditor");
+
+  if (!container) {
+    return;
+  }
+
+  const holder =
+    document.createElement(
+      "div"
+    );
+
+  holder.innerHTML =
+    specialSlotRowHtml(
+      slot
+    );
+
+  const row =
+    holder.firstElementChild;
+
+  row
+    .querySelector(
+      ".special-slot-remove"
+    )
+    ?.addEventListener(
+      "click",
+      () => {
+        row.remove();
+      }
+    );
+
+  container.appendChild(
+    row
+  );
+}
+
+function readSpecialSlotRows() {
+  const rows =
+    $$(".special-slot-row");
+
+  if (!rows.length) {
+    throw new Error(
+      "授業枠を1つ以上追加してください"
+    );
+  }
+
+  return rows.map(row => {
+    const weekdayValue =
+      row.querySelector(
+        ".special-slot-weekday"
+      ).value;
+
+    const startTime =
+      row.querySelector(
+        ".special-slot-start"
+      ).value;
+
+    const endTime =
+      row.querySelector(
+        ".special-slot-end"
+      ).value;
+
+    const capacity =
+      Number(
+        row.querySelector(
+          ".special-slot-capacity"
+        ).value
+      );
+
+    if (
+      !startTime ||
+      !endTime ||
+      startTime >= endTime
+    ) {
+      throw new Error(
+        "授業枠の開始・終了時間を確認してください"
+      );
+    }
+
+    if (
+      !Number.isSafeInteger(capacity) ||
+      capacity < 1 ||
+      capacity > 100
+    ) {
+      throw new Error(
+        "定員は1〜100名で入力してください"
+      );
+    }
+
+    return {
+      weekday:
+        weekdayValue
+          ? Number(weekdayValue)
+          : null,
+      startTime,
+      endTime,
+      capacity
+    };
+  });
+}
+
+function setSpecialModeUi() {
+  const mode =
+    $("#specialMode")
+      ?.value ||
+    "custom";
+
+  if ($("#specialCustomFields")) {
+    $("#specialCustomFields").hidden =
+      mode !== "custom";
+  }
+
+  if ($("#specialCopyFields")) {
+    $("#specialCopyFields").hidden =
+      mode !== "copy";
+  }
+}
+
+function resetSpecialScheduleForm(
+  classrooms
+) {
+  $("#specialScheduleId").value = "";
+  $("#specialName").value = "";
+  $("#specialMode").value = "custom";
+  $("#specialStartDate").value = dateIso(7);
+  $("#specialEndDate").value = dateIso(7);
+
+  if (classrooms[0]) {
+    $("#specialTargetClassroom").value =
+      String(classrooms[0].id);
+  }
+
+  const fukunuma =
+    classrooms.find(
+      room => room.name === "福沼教室"
+    );
+
+  if (fukunuma) {
+    $("#specialSourceClassroom").value =
+      String(fukunuma.id);
+  }
+
+  $("#specialSlotsEditor")
+    .replaceChildren();
+
+  addSpecialSlotRow({
+    startTime: "09:00",
+    endTime: "10:00",
+    capacity: 5
+  });
+
+  addSpecialSlotRow({
+    startTime: "10:10",
+    endTime: "11:10",
+    capacity: 5
+  });
+
+  setSpecialModeUi();
+}
 
 async function loadClassSlots() {
   const start =
@@ -2686,285 +3139,728 @@ async function loadClassSlots() {
     "/rest/v1/rpc/available_makeup_slots",
     {
       method: "POST",
-
       headers: {
-        "Content-Type":
-          "application/json"
+        "Content-Type": "application/json"
       },
-
-      body:
-        JSON.stringify({
-          p_from:
-            start,
-
-          p_to:
-            dateIsoFrom(
-              start,
-              30
-            ),
-
-          p_classroom:
-            $("#classroomFilter").value ===
-            "all"
-              ? null
-              : $("#classroomFilter").value
-        })
+      body: JSON.stringify({
+        p_from: start,
+        p_to: dateIsoFrom(start, 30),
+        p_classroom:
+          $("#classroomFilter").value === "all"
+            ? null
+            : $("#classroomFilter").value
+      })
     }
   );
 }
 
 async function renderClassSlots() {
-  $("#stats")
-    .innerHTML =
-      "";
+  $("#stats").innerHTML = "";
 
-  const rows =
-    await loadClassSlots();
+  const [
+    normalSlots,
+    specialSchedules,
+    classrooms
+  ] = await Promise.all([
+    loadNormalLessonSlots(),
+    loadSpecialSchedules(),
+    loadAdminClassrooms()
+  ]);
 
-  const adminForm =
-    currentProfile.role === "admin"
+  const classroomName = id =>
+    classrooms.find(
+      room => Number(room.id) === Number(id)
+    )?.name || `教室ID ${id}`;
 
-      ? `
-        <form
-          id="slotForm"
-          class="slot-form"
-        >
-          <label>
-            授業日
+  const activeSpecialCount =
+    specialSchedules.filter(
+      schedule => schedule.active
+    ).length;
 
-            <input
-              id="slotDate"
-              type="date"
-              min="${dateIso()}"
-              value="${$("#dateFilter").value || dateIso(7)}"
-              required
-            >
-          </label>
+  $("#adminContent").innerHTML = `
+    <div class="list-title">
+      <h2>授業時間・特別時間割管理</h2>
+      <span class="badge">
+        特別時間割 ${activeSpecialCount}件
+      </span>
+    </div>
 
-          <label>
-            教室
-
-            <select
-              id="slotClassroom"
-            >
-              <option>
-                福沼教室
-              </option>
-
-              <option>
-                穂波教室
-              </option>
-            </select>
-          </label>
-
-          <label>
-            開始時間
-
-            <input
-              id="slotTime"
-              type="time"
-              value="16:00"
-              required
-            >
-          </label>
-
-          <label>
-            定員
-
-            <input
-              id="slotCapacity"
-              type="number"
-              min="1"
-              max="100"
-              value="8"
-              required
-            >
-          </label>
-
-          <button
-            class="primary-button"
-            type="submit"
-          >
-            授業枠を追加・更新
-          </button>
-        </form>
-      `
-
-      : '<p class="privacy-note compact">定員の変更は管理者だけが行えます。</p>';
-
-  $("#adminContent")
-    .innerHTML = `
+    <section style="margin-bottom:28px;">
       <div class="list-title">
-        <h2>
-          授業枠ごとの予約人数
-        </h2>
-
-        <span class="badge">
-          ${rows.length}枠
-        </span>
+        <h3 style="margin:0;">通常時間割</h3>
       </div>
 
-      ${adminForm}
+      <p class="privacy-note compact">
+        通常授業の基準時間です。特別時間割が設定された日は、下の特別時間割が優先されます。
+      </p>
 
-      <div class="slot-list">
-        ${
-          rows.length
-            ? rows
-                .map(
-                  row => `
-                    <div
-                      class="slot-row ${Number(row.remaining_count) === 0 ? "is-full" : ""}"
-                    >
+      ${classrooms.map(room => {
+        const roomSlots =
+          normalSlots.filter(
+            slot => Number(slot.classroom_id) === Number(room.id)
+          );
+
+        return `
+          <div style="margin-top:18px;">
+            <h4 style="margin:0 0 10px;">
+              ${escapeHtml(room.name)}
+            </h4>
+
+            <div class="slot-list">
+              ${roomSlots.length
+                ? roomSlots.map(slot => `
+                    <div class="slot-row">
                       <div>
                         <b>
-                          ${formatDate(row.lesson_date)}
-                          ${escapeHtml(formatTime(row.start_time))}〜
+                          ${weekdayLabel(slot.weekday)}曜日
+                          ${escapeHtml(formatTime(slot.start_time))}〜${escapeHtml(formatTime(slot.end_time))}
                         </b>
-
-                        <span>
-                          ${escapeHtml(row.classroom)}
-                        </span>
+                        <span>定員 ${Number(slot.capacity)}名</span>
                       </div>
+                    </div>
+                  `).join("")
+                : '<div class="empty">通常時間割が登録されていません</div>'
+              }
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </section>
 
-                      <div class="slot-meter">
-                        <b>
-                          予約
-                          ${row.reserved_count}/${row.capacity}名
-                        </b>
+    <section>
+      <div class="list-title">
+        <h3 style="margin:0;">特別時間割</h3>
 
+        ${currentProfile.role === "admin"
+          ? `
+            <button
+              id="specialScheduleAddButton"
+              class="primary-button"
+              type="button"
+            >
+              ＋ 特別時間割を追加
+            </button>
+          `
+          : ""
+        }
+      </div>
+
+      ${currentProfile.role === "admin"
+        ? `
+          <div
+            id="specialScheduleFormWrap"
+            hidden
+            style="margin:18px 0 24px;padding:18px;border:1px solid #ddd;border-radius:14px;"
+          >
+            <form id="specialScheduleForm">
+              <input id="specialScheduleId" type="hidden" value="">
+
+              <div class="slot-form">
+                <label>
+                  設定名
+                  <input
+                    id="specialName"
+                    type="text"
+                    maxlength="100"
+                    placeholder="例：祝日午前授業・春休み時間割"
+                    required
+                  >
+                </label>
+
+                <label>
+                  対象教室
+                  <select id="specialTargetClassroom" required>
+                    ${classrooms.map(room => `
+                      <option value="${room.id}">
+                        ${escapeHtml(room.name)}
+                      </option>
+                    `).join("")}
+                  </select>
+                </label>
+
+                <label>
+                  開始日
+                  <input
+                    id="specialStartDate"
+                    type="date"
+                    min="${dateIso()}"
+                    required
+                  >
+                </label>
+
+                <label>
+                  終了日
+                  <input
+                    id="specialEndDate"
+                    type="date"
+                    min="${dateIso()}"
+                    required
+                  >
+                </label>
+
+                <label>
+                  時間割の設定方法
+                  <select id="specialMode">
+                    <option value="custom">時間枠を手入力</option>
+                    <option value="copy">他教室の通常時間割をコピー</option>
+                  </select>
+                </label>
+              </div>
+
+              <div
+                id="specialCopyFields"
+                hidden
+                style="margin-top:16px;"
+              >
+                <div class="slot-form">
+                  <label>
+                    コピー元教室
+                    <select id="specialSourceClassroom">
+                      ${classrooms.map(room => `
+                        <option value="${room.id}">
+                          ${escapeHtml(room.name)}
+                        </option>
+                      `).join("")}
+                    </select>
+                  </label>
+                </div>
+
+                <p class="privacy-note compact">
+                  保存時点の通常時間割をコピーします。後からコピー元の通常時間割を変更しても、この特別時間割は自動では変わりません。
+                </p>
+              </div>
+
+              <div
+                id="specialCustomFields"
+                style="margin-top:16px;"
+              >
+                <div class="list-title">
+                  <h4 style="margin:0;">授業枠</h4>
+                  <button
+                    id="specialSlotAddButton"
+                    class="outline-button"
+                    type="button"
+                  >
+                    ＋ 授業枠を追加
+                  </button>
+                </div>
+
+                <div
+                  id="specialSlotsEditor"
+                  style="margin-top:12px;"
+                ></div>
+              </div>
+
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+                <button
+                  class="primary-button"
+                  type="submit"
+                >
+                  特別時間割を保存
+                </button>
+
+                <button
+                  id="specialScheduleCancelButton"
+                  class="outline-button"
+                  type="button"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </form>
+          </div>
+        `
+        : '<p class="privacy-note compact">特別時間割の変更は管理者のみ利用できます。</p>'
+      }
+
+      <div class="slot-list" style="margin-top:18px;">
+        ${specialSchedules.length
+          ? specialSchedules.map(schedule => {
+              const slots =
+                (schedule.special_schedule_slots || [])
+                  .filter(slot => slot.active)
+                  .sort((a, b) =>
+                    Number(a.weekday || 0) - Number(b.weekday || 0) ||
+                    String(a.start_time).localeCompare(String(b.start_time))
+                  );
+
+              return `
+                <div class="slot-row ${schedule.active ? "" : "is-full"}">
+                  <div style="min-width:0;">
+                    <b>
+                      ${escapeHtml(schedule.name)}
+                      ${schedule.active ? "" : "（無効）"}
+                    </b>
+
+                    <span>
+                      ${escapeHtml(classroomName(schedule.classroom_id))}
+                      ／ ${formatDate(schedule.start_date)}〜${formatDate(schedule.end_date)}
+                    </span>
+
+                    <span>
+                      ${schedule.source_type === "copied"
+                        ? `コピー元：${escapeHtml(classroomName(schedule.source_classroom_id))}`
+                        : "時間枠を手入力"
+                      }
+                    </span>
+
+                    ${slots.length
+                      ? `
                         <span>
-                          ${
-                            Number(
-                              row.remaining_count
-                            ) === 0
-                              ? "満員"
-                              : `残り${row.remaining_count}名`
-                          }
+                          ${slots.map(slot =>
+                            `${slot.weekday == null ? "毎日" : weekdayLabel(slot.weekday) + "曜"} ${formatTime(slot.start_time)}〜${formatTime(slot.end_time)}（${slot.capacity}名）`
+                          ).join(" ／ ")}
                         </span>
-                      </div>
+                      `
+                      : ""
+                    }
+                  </div>
 
-                      ${
-                        currentProfile.role === "admin"
+                  ${currentProfile.role === "admin"
+                    ? `
+                      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button
+                          class="small-button"
+                          type="button"
+                          data-edit-special="${schedule.id}"
+                        >
+                          編集
+                        </button>
 
+                        ${schedule.active
                           ? `
                             <button
                               class="small-button"
-                              data-edit-slot="${row.id}"
-                              data-date="${row.lesson_date}"
-                              data-room="${escapeHtml(row.classroom)}"
-                              data-time="${escapeHtml(formatTime(row.start_time))}"
-                              data-capacity="${row.capacity}"
                               type="button"
+                              data-delete-special="${schedule.id}"
                             >
-                              定員変更
+                              削除／無効化
                             </button>
                           `
-
-                          : ""
-                      }
-                    </div>
-                  `
-                )
-                .join("")
-
-            : '<div class="empty">対象期間の授業枠はありません</div>'
+                          : `
+                            <button
+                              class="small-button"
+                              type="button"
+                              data-enable-special="${schedule.id}"
+                            >
+                              再有効化
+                            </button>
+                          `
+                        }
+                      </div>
+                    `
+                    : ""
+                  }
+                </div>
+              `;
+            }).join("")
+          : '<div class="empty">特別時間割はまだ登録されていません</div>'
         }
       </div>
-    `;
+    </section>
+  `;
 
-  $("#slotForm")
+  if (
+    currentProfile.role !== "admin"
+  ) {
+    return;
+  }
+
+  const formWrap =
+    $("#specialScheduleFormWrap");
+
+  const openNewForm = () => {
+    formWrap.hidden = false;
+    resetSpecialScheduleForm(
+      classrooms
+    );
+    formWrap.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  };
+
+  $("#specialScheduleAddButton")
     ?.addEventListener(
-      "submit",
-      saveSlotForm
+      "click",
+      openNewForm
     );
 
-  $$(
-    "[data-edit-slot]"
-  ).forEach(
-    button =>
-      button.addEventListener(
-        "click",
-        () => {
-          $("#slotDate")
-            .value =
-              button.dataset.date;
-
-          $("#slotClassroom")
-            .value =
-              button.dataset.room;
-
-          $("#slotTime")
-            .value =
-              button.dataset.time;
-
-          $("#slotCapacity")
-            .value =
-              button.dataset.capacity;
-
-          $("#slotCapacity")
-            .focus();
-        }
-      )
-  );
-}
-
-async function saveSlotForm(
-  event
-) {
-  event.preventDefault();
-
-  const button =
-    event.submitter;
-
-  button.disabled =
-    true;
-
-  try {
-    await api(
-      "/rest/v1/rpc/admin_upsert_class_slot",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
-
-        body:
-          JSON.stringify({
-            p_lesson_date:
-              $("#slotDate").value,
-
-            p_classroom:
-              $("#slotClassroom").value,
-
-            p_start_time:
-              $("#slotTime").value,
-
-            p_capacity:
-              Number(
-                $("#slotCapacity").value
-              ),
-
-            p_is_active:
-              true
-          })
+  $("#specialScheduleCancelButton")
+    ?.addEventListener(
+      "click",
+      () => {
+        formWrap.hidden = true;
       }
     );
 
-    toast(
-      "授業枠を保存しました"
+  $("#specialMode")
+    ?.addEventListener(
+      "change",
+      setSpecialModeUi
     );
 
-    await renderClassSlots();
-  } catch (error) {
-    toast(
-      error.message
+  $("#specialSlotAddButton")
+    ?.addEventListener(
+      "click",
+      () =>
+        addSpecialSlotRow({
+          startTime: "09:00",
+          endTime: "10:00",
+          capacity: 5
+        })
     );
-  } finally {
-    button.disabled =
-      false;
-  }
+
+  $("#specialStartDate")
+    ?.addEventListener(
+      "change",
+      event => {
+        const end =
+          $("#specialEndDate");
+
+        end.min =
+          event.target.value ||
+          dateIso();
+
+        if (
+          end.value &&
+          end.value < event.target.value
+        ) {
+          end.value =
+            event.target.value;
+        }
+      }
+    );
+
+  $("#specialScheduleForm")
+    ?.addEventListener(
+      "submit",
+      async event => {
+        event.preventDefault();
+
+        const button =
+          event.submitter;
+
+        button.disabled = true;
+
+        try {
+          const editingId =
+            Number(
+              $("#specialScheduleId").value
+            ) || null;
+
+          const name =
+            $("#specialName")
+              .value
+              .trim();
+
+          const classroomId =
+            Number(
+              $("#specialTargetClassroom").value
+            );
+
+          const startDate =
+            $("#specialStartDate").value;
+
+          const endDate =
+            $("#specialEndDate").value;
+
+          const mode =
+            $("#specialMode").value;
+
+          if (!name) {
+            throw new Error(
+              "設定名を入力してください"
+            );
+          }
+
+          if (
+            !Number.isSafeInteger(classroomId) ||
+            classroomId < 1
+          ) {
+            throw new Error(
+              "対象教室を選択してください"
+            );
+          }
+
+          if (
+            !startDate ||
+            !endDate ||
+            endDate < startDate
+          ) {
+            throw new Error(
+              "開始日・終了日を確認してください"
+            );
+          }
+
+          const overlap =
+            specialScheduleOverlap(
+              specialSchedules,
+              classroomId,
+              startDate,
+              endDate,
+              editingId
+            );
+
+          if (
+            overlap &&
+            !window.confirm(
+              `同じ教室で「${overlap.name}」と期間が重なっています。\n\n新しく保存した設定が優先されます。続けますか？`
+            )
+          ) {
+            button.disabled = false;
+            return;
+          }
+
+          if (mode === "copy") {
+            const sourceClassroomId =
+              Number(
+                $("#specialSourceClassroom").value
+              );
+
+            const targetClassroom =
+              classroomName(
+                classroomId
+              );
+
+            const sourceClassroom =
+              classroomName(
+                sourceClassroomId
+              );
+
+            if (
+              !Number.isSafeInteger(sourceClassroomId) ||
+              sourceClassroomId < 1
+            ) {
+              throw new Error(
+                "コピー元教室を選択してください"
+              );
+            }
+
+            await createCopiedSpecialSchedule({
+              name,
+              targetClassroom,
+              sourceClassroom,
+              startDate,
+              endDate
+            });
+          } else {
+            await createCustomSpecialSchedule({
+              name,
+              classroomId,
+              startDate,
+              endDate,
+              slots:
+                readSpecialSlotRows()
+            });
+          }
+
+          if (editingId) {
+            const oldSchedule =
+              specialSchedules.find(
+                schedule => Number(schedule.id) === editingId
+              );
+
+            if (oldSchedule) {
+              await setSpecialScheduleActive(
+                editingId,
+                false
+              );
+            }
+          }
+
+          toast(
+            editingId
+              ? "特別時間割を更新しました"
+              : "特別時間割を追加しました"
+          );
+
+          await loadMakeupSlots()
+            .catch(() => {});
+
+          await renderClassSlots();
+        } catch (error) {
+          toast(
+            error.message
+          );
+          button.disabled = false;
+        }
+      }
+    );
+
+  $$("[data-edit-special]")
+    .forEach(button =>
+      button.addEventListener(
+        "click",
+        () => {
+          const id =
+            Number(
+              button.dataset.editSpecial
+            );
+
+          const schedule =
+            specialSchedules.find(
+              item => Number(item.id) === id
+            );
+
+          if (!schedule) {
+            return;
+          }
+
+          formWrap.hidden = false;
+
+          $("#specialScheduleId").value =
+            String(schedule.id);
+
+          $("#specialName").value =
+            schedule.name || "";
+
+          $("#specialTargetClassroom").value =
+            String(schedule.classroom_id);
+
+          $("#specialStartDate").value =
+            schedule.start_date;
+
+          $("#specialEndDate").value =
+            schedule.end_date;
+
+          $("#specialMode").value =
+            schedule.source_type === "copied"
+              ? "copy"
+              : "custom";
+
+          if (schedule.source_classroom_id) {
+            $("#specialSourceClassroom").value =
+              String(schedule.source_classroom_id);
+          }
+
+          $("#specialSlotsEditor")
+            .replaceChildren();
+
+          const slots =
+            (schedule.special_schedule_slots || [])
+              .filter(slot => slot.active)
+              .sort((a, b) =>
+                Number(a.weekday || 0) - Number(b.weekday || 0) ||
+                String(a.start_time).localeCompare(String(b.start_time))
+              );
+
+          if (slots.length) {
+            slots.forEach(
+              slot =>
+                addSpecialSlotRow(
+                  slot
+                )
+            );
+          } else {
+            addSpecialSlotRow({
+              startTime: "09:00",
+              endTime: "10:00",
+              capacity: 5
+            });
+          }
+
+          setSpecialModeUi();
+
+          formWrap.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        }
+      )
+    );
+
+  $$("[data-delete-special]")
+    .forEach(button =>
+      button.addEventListener(
+        "click",
+        async () => {
+          const id =
+            Number(
+              button.dataset.deleteSpecial
+            );
+
+          const schedule =
+            specialSchedules.find(
+              item => Number(item.id) === id
+            );
+
+          if (!schedule) {
+            return;
+          }
+
+          button.disabled = true;
+
+          try {
+            const result =
+              await deleteSpecialSchedule(
+                schedule
+              );
+
+            if (!result) {
+              button.disabled = false;
+              return;
+            }
+
+            toast(
+              result === "disabled"
+                ? "予約があるため、特別時間割を無効化しました"
+                : "特別時間割を削除しました"
+            );
+
+            await loadMakeupSlots()
+              .catch(() => {});
+
+            await renderClassSlots();
+          } catch (error) {
+            toast(
+              error.message
+            );
+            button.disabled = false;
+          }
+        }
+      )
+    );
+
+  $$("[data-enable-special]")
+    .forEach(button =>
+      button.addEventListener(
+        "click",
+        async () => {
+          const id =
+            Number(
+              button.dataset.enableSpecial
+            );
+
+          button.disabled = true;
+
+          try {
+            await setSpecialScheduleActive(
+              id,
+              true
+            );
+
+            toast(
+              "特別時間割を再有効化しました"
+            );
+
+            await loadMakeupSlots()
+              .catch(() => {});
+
+            await renderClassSlots();
+          } catch (error) {
+            toast(
+              error.message
+            );
+            button.disabled = false;
+          }
+        }
+      )
+    );
+
+  resetSpecialScheduleForm(
+    classrooms
+  );
 }
 
 
@@ -3318,8 +4214,6 @@ function toast(message) {
       2400
     );
 }
-
-
 /* =========================
    イベント
 ========================= */
